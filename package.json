@@ -1,0 +1,16 @@
+{
+  "name": "simple-irc-socket",
+  "version": "1.0.0",
+  "description": "Simple IRC Socket for usage with IRC libraries.",
+  "main": "simple-irc-socket.js",
+  "scripts": {
+    "test": "jasmine-node spec --verbose"
+  },
+  "repository": "",
+  "keywords": [
+    "irc",
+    "socket"
+  ],
+  "author": "Ryan S. Scheel (havvy)",
+  "license": "BSD"
+}
