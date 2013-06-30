@@ -4,7 +4,7 @@ var util = require('util');
 
 var log = function (input, msg) {
     var date = new Date();
-    console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg;
+    console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg);
 };
 
 var create = function (prototype, properties) {
