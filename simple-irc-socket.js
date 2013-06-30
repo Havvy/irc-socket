@@ -2,9 +2,9 @@ var net = require('net');
 var events = require('events');
 var util = require('util');
 
-var log = function (in, msg) {
+var log = function (input, msg) {
     var date = new Date();
-    console.log(Date().toString() + "|" + (in ? "<-" : "->") + "|" + msg;
+    console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg;
 };
 
 var create = function (prototype, properties) {
