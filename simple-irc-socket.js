@@ -2,6 +2,11 @@ var net = require('net');
 var events = require('events');
 var util = require('util');
 
+var log = function (in, msg) {
+    var date = new Date();
+    console.log(Date().toString() + "|" + (in ? "<-" : "->") + "|" + msg;
+};
+
 var create = function (prototype, properties) {
     if (typeof properties !== 'object') {
         return Object.create(prototype);
@@ -39,6 +44,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
             return true;
         })
         .forEach(function (line) {
+            log(true, line);
             socket.emit('data', line);
         });
     };
@@ -111,6 +117,7 @@ Socket.prototype = create(events.EventEmitter.prototype, {
             throw new Error('Newline detected in message. Use multiple raws instead.');
         }
 
+        log(false, message);
         this.genericSocket.write(message + '\n', 'ascii');
     },
 
