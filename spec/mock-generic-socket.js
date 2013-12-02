@@ -32,5 +32,7 @@ var GenericMockSocket = module.exports = function GenericMockSocket () {
 
 GenericMockSocket.messages = {
   "001" : ":irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost\r\n",
-  ping : 'PING :PINGMESSAGE\r\n'
+  ping : 'PING :PINGMESSAGE\r\n',
+  multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re"
+  multi2: "ally long message!\r\n" 
 };

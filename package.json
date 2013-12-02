@@ -2,7 +2,7 @@
   "name": "simple-irc-socket",
   "version": "1.0.1",
   "description": "Simple IRC Socket for usage with IRC libraries.",
-  "main": "simple-irc-socket.js",
+  "main": "irc-socket.js",
   "scripts": {
     "test": "jasmine-node spec --verbose"
   },

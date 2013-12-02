@@ -1,39 +1,54 @@
+/**
+ *
+ * IRC Socket
+ *
+ * Socket that connects to an IRC network and emits each line from the server.
+ *
+ * Send messages to server with .raw(String) method.
+ */
+
 var net = require('net');
 var events = require('events');
 var util = require('util');
 
-var log = function (input, msg) {
-    var date = new Date();
-    console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg);
-};
+// var log = function (input, msg) {
+//     var date = new Date();
+//     console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg);
+// };
 
 var create = function (prototype, properties) {
-    if (typeof properties !== 'object') {
-        return Object.create(prototype);
+    if (typeof properties == 'object') {
+        var props = {};
+        Object.keys(properties).forEach(function (key) {
+            props[key] = { value: properties[key] };
+        });
     }
 
-    var props = {};
-    Object.keys(properties).forEach(function (key) {
-        props[key] = { value: properties[key] };
-    });
     return Object.create(prototype, props);
 };
 
 var Socket = module.exports = function Socket (network, GenericSocket) {
     GenericSocket = GenericSocket || net.Socket;
 
-    var socket = create(Socket.prototype); // no new needed.
+    var socket = create(Socket.prototype);
     socket.port = network.port || 6667;
     socket.netname = network.server;
     socket.genericSocket = new GenericSocket();
     socket.connected = false;
 
-    /**
-     * @FIXME Do not send last message if not finished
-     */
-     var onData = function onData (data) {
-        data
-        .split('\r\n')
+    var onData = function onData (data) {
+        lines = data.split('\r\n');
+
+        if (onData.buffer) {
+            lines[0] = buffer + lines[0];
+            onData.buffer = null;
+        }
+
+        if (lines[lines.length - 1] !== "") {
+            onData.buffer = lines.pop();
+        }
+
+        lines
         .filter(function (line) { return line !== ''; })
         .filter(function (line) {
             if (line.slice(0, 4) === 'PING') {
@@ -44,10 +59,12 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
             return true;
         })
         .forEach(function (line) {
-            log(true, line);
+            //log(true, line);
             socket.emit('data', line);
         });
     };
+
+    onData.buffer = null;
 
     void function readyEvent () {
         var emitWhenReady = function (data) {
@@ -61,7 +78,6 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
             socket.genericSocket.removeListener('data', emitWhenReady);
         });
     }();
-
 
     socket.genericSocket.once('connect', function () {
         socket.connected = true;
