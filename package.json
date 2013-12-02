@@ -1,12 +1,12 @@
 {
   "name": "simple-irc-socket",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "Simple IRC Socket for usage with IRC libraries.",
   "main": "irc-socket.js",
   "scripts": {
     "test": "jasmine-node spec --verbose"
   },
-  "repository": "",
+  "repository": "https://github.com/Havvy/simple-irc-socket.git",
   "keywords": [
     "irc",
     "socket"
