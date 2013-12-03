@@ -133,7 +133,7 @@ Socket.prototype = create(events.EventEmitter.prototype, {
             throw new Error('Newline detected in message. Use multiple raws instead.');
         }
 
-        log(false, message);
+        //log(false, message);
         this.genericSocket.write(message + '\n', 'ascii');
     },
 
