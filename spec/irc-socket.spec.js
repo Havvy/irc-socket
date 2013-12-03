@@ -54,8 +54,8 @@ describe("IRC Sockets", function () {
             var socket = IrcSocket(network, box(genericsocket));
             socket.connect();
             socket.end();
-            expect(genericsocket.write).toHaveBeenCalledWith('NICK testbot\n', 'ascii');
-            expect(genericsocket.write).toHaveBeenCalledWith('USER testuser 8 * :realbot\n', 'ascii');
+            expect(genericsocket.write).toHaveBeenCalledWith('NICK testbot\n', 'utf-8');
+            expect(genericsocket.write).toHaveBeenCalledWith('USER testuser 8 * :realbot\n', 'utf-8');
         });
 
         it('Sends Ready Events on 001', function () {
@@ -105,7 +105,7 @@ describe("IRC Sockets", function () {
             }, "socket to connect", 400);
 
             runs(function () {
-                expect(genericsocket.write).toHaveBeenCalledWith('PONG :PINGMESSAGE\n', 'ascii');
+                expect(genericsocket.write).toHaveBeenCalledWith('PONG :PINGMESSAGE\n', 'utf-8');
             });
         });
 

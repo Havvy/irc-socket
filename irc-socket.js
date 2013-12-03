@@ -103,7 +103,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
         socket.impl.setNoDelay();
     };
 
-    socket.setupEvents();
+    socket._setupEvents();
 
     return socket;
 };
