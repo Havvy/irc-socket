@@ -40,12 +40,6 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
     socket.connected = false;
 
     socket.setupEvents = function () {
-        void function connectEvent () {
-            socket.connected = true;
-            socket.raw(["NICK", socket.network.nick]);
-            socket.raw(["USER", socket.network.user || "user", "8 * :" + socket.network.realname]);
-        }();
-        
         var onData = function onData (data) {
             lines = data.split('\r\n');
 
@@ -89,6 +83,17 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
             });
         }();
 
+        void function connectEvent () {
+            var emitEvent = (socket.secure) ? 'secureConnect' : 'connect';
+            var emitWhenConnected = function () {
+                socket.connected = true;
+                socket.raw(["NICK", socket.network.nick]);
+                socket.raw(["USER", socket.network.user || "user", "8 * :" + socket.network.realname]);
+            };
+
+            socket.genericSocket.on(emitEvent, emitWhenConnected);
+        }();
+
         socket.genericSocket.once('close', function () {
             socket.connected = false;
         });
@@ -97,6 +102,8 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
         socket.genericSocket.setEncoding('ascii');
         socket.genericSocket.setNoDelay();
     };
+
+    socket.setupEvents();
 
     return socket;
 };
@@ -115,10 +122,11 @@ Socket.prototype = create(events.EventEmitter.prototype, {
         }
 
         if (this.secure) {
-            this.genericSocket = tls.connect(this.port, this.netname, {rejectUnauthorized: false}, this.setupEvents);
+            this.genericSocket = tls.connect(this.port, this.netname, {rejectUnauthorized: false});
+            this.setupEvents();
             // set rejectUnauthorized because most IRC servers don't have certified certificates anyway.
         } else {
-            this.genericSocket = this.genericSocket.connect(this.port, this.netname, this.setupEvents);
+            this.genericSocket.connect(this.port, this.netname);
         }
     },
 
