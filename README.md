@@ -29,7 +29,7 @@ seperate generic socket instead in the second parameter.
 
 ```javascript
 var myConnection = IrcSocket(...);
-mySocket.start();
+mySocket.connect();
 mySocket.once('ready', function () {
     mySocket.end();
 }
@@ -45,7 +45,7 @@ a space. The message '''must''' follow the
 var details = {...};
 var myConnection = Ircsocket(details);
 
-mySocket.start();
+mySocket.connect();
 mySocket.once('ready', function () {
     // Using a string.
     mySocket.raw("JOIN #biscuits");
