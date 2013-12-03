@@ -17,7 +17,8 @@ var myConnection = IrcSocket({
     nick: 'aBot',
     user: 'node',
     realname: 'Node Simple Socket'
-    port: 6667
+    port: 6667,
+    secure: false
 });
 ```
 ### Dependency Injection ###
@@ -25,14 +26,16 @@ var myConnection = IrcSocket({
 A simple irc socket uses a `net.Socket` socket by default. You can pass a
 seperate generic socket instead in the second parameter.
 
+If you pass `secure: true` in the network configuration object, this parameter is ignored.
+
 ## Starting and Closing the Socket ##
 
 ```javascript
 var myConnection = IrcSocket(...);
-mySocket.connect();
 mySocket.once('ready', function () {
     mySocket.end();
 }
+mySocket.connect();
 ```
 
 ## Writing to the Server ##
@@ -127,7 +130,10 @@ npm test
 
 ## Known Issues ##
 
-If the generic socket sends an incomplete message, such as when showing a
-long MOTD, the basic-irc-socket will emit the incomplete message and then,
-with the next input, emit a strangely named event based on whatever the rest
-of the broken up message was.
+The socket you pass gets ignored if you pass `secure: true` in the network config.
+
+## See Also
+
+The (irc-message)[https://github.com/expr/irc-message] module will quickly parse the strings you pass into objects.
+
+For a full IRC framework, take a look at (Tennu)[https://github.com/havvy/tennu].
