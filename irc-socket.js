@@ -40,7 +40,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
         lines = data.split('\r\n');
 
         if (onData.buffer) {
-            lines[0] = buffer + lines[0];
+            lines[0] = onData.buffer + lines[0];
             onData.buffer = null;
         }
 
