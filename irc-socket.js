@@ -12,10 +12,10 @@ var tls = require('tls');
 var events = require('events');
 var util = require('util');
 
- var log = function (input, msg) {
-     var date = new Date();
-     console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg);
- };
+ // var log = function (input, msg) {
+ //     var date = new Date();
+ //     console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg);
+ // };
 
 var create = function (prototype, properties) {
     if (typeof properties == 'object') {
@@ -36,10 +36,10 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
     socket.netname = network.server;
     socket.secure = network.secure || false;
     socket.network = network;
-    socket.genericSocket = new GenericSocket();
+    socket.impl = new GenericSocket();
     socket.connected = false;
 
-    socket.setupEvents = function () {
+    socket._setupEvents = function () {
         var onData = function onData (data) {
             lines = data.split('\r\n');
 
@@ -63,7 +63,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
                 return true;
             })
             .forEach(function (line) {
-                log(true, line);
+                //log(true, line);
                 socket.emit('data', line);
             });
         };
@@ -77,9 +77,9 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
                 }
             };
 
-            socket.genericSocket.on('data', emitWhenReady);
+            socket.impl.on('data', emitWhenReady);
             socket.on('ready', function remove () {
-                socket.genericSocket.removeListener('data', emitWhenReady);
+                socket.impl.removeListener('data', emitWhenReady);
             });
         }();
 
@@ -91,16 +91,16 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
                 socket.raw(["USER", socket.network.user || "user", "8 * :" + socket.network.realname]);
             };
 
-            socket.genericSocket.on(emitEvent, emitWhenConnected);
+            socket.impl.on(emitEvent, emitWhenConnected);
         }();
 
-        socket.genericSocket.once('close', function () {
+        socket.impl.once('close', function () {
             socket.connected = false;
         });
 
-        socket.genericSocket.on('data', onData);
-        socket.genericSocket.setEncoding('ascii');
-        socket.genericSocket.setNoDelay();
+        socket.impl.on('data', onData);
+        socket.impl.setEncoding('utf-8');
+        socket.impl.setNoDelay();
     };
 
     socket.setupEvents();
@@ -122,11 +122,11 @@ Socket.prototype = create(events.EventEmitter.prototype, {
         }
 
         if (this.secure) {
-            this.genericSocket = tls.connect(this.port, this.netname, {rejectUnauthorized: false});
-            this.setupEvents();
+            this.impl = tls.connect(this.port, this.netname, {rejectUnauthorized: false});
+            this._setupEvents();
             // set rejectUnauthorized because most IRC servers don't have certified certificates anyway.
         } else {
-            this.genericSocket.connect(this.port, this.netname);
+            this.impl.connect(this.port, this.netname);
         }
     },
 
@@ -135,7 +135,7 @@ Socket.prototype = create(events.EventEmitter.prototype, {
             return;
         }
 
-        this.genericSocket.end();
+        this.impl.end();
     },
 
     raw : function (message) {
@@ -151,8 +151,8 @@ Socket.prototype = create(events.EventEmitter.prototype, {
             throw new Error('Newline detected in message. Use multiple raws instead.');
         }
 
-        log(false, message);
-        this.genericSocket.write(message + '\n', 'ascii');
+        //log(false, message);
+        this.impl.write(message + '\n', 'utf-8');
     },
 
     isConnected : function () {
