@@ -113,11 +113,12 @@ This method returns the realname (also called gecos) of the connection.
 
 ## Events ##
 
-The basic-irc-socket is an event emitter. It emits two events.
+The basic-irc-socket is an event emitter. It emits three events.
 
 + ready(): Once the first 001 message has been acknowledged.
 + data(message: String): Every message (including the 001) from the
 sender (inclusive) the the newline (exclusive).
++ close(): Once the implementing socket has been closed.
 
 ## Testing ##
 
