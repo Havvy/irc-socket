@@ -107,6 +107,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
 
         socket.impl.once('close', function () {
             socket.connected = false;
+            socket.emit('close');
         });
 
         socket.impl.on('data', onData);
