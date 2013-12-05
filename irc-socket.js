@@ -35,6 +35,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
     socket.port = network.port || 6667;
     socket.netname = network.server;
     socket.secure = network.secure || false;
+    socket.capab = network.capab || false;
     socket.network = network;
     socket.impl = new GenericSocket();
     socket.connected = false;
@@ -87,7 +88,11 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
             var emitEvent = (socket.secure) ? 'secureConnect' : 'connect';
             var emitWhenConnected = function () {
                 socket.connected = true;
-                socket.raw(["CAP", "LS"]);
+
+                if (socket.capab) {
+                    socket.raw(["CAP", "LS"]);
+                }
+
                 socket.raw(["NICK", socket.network.nick]);
                 socket.raw(["USER", socket.network.user || "user", "8 * :" + socket.network.realname]);
             };
