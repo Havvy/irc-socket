@@ -36,6 +36,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
     socket.netname = network.server;
     socket.secure = network.secure || false;
     socket.capab = network.capab || false;
+    socket.password = network.password || null;
     socket.network = network;
     socket.impl = new GenericSocket();
     socket.connected = false;
@@ -91,6 +92,10 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
 
                 if (socket.capab) {
                     socket.raw(["CAP", "LS"]);
+                }
+
+                if (socket.password !== null) {
+                    socket.raw(["PASS", socket.password]);
                 }
 
                 socket.raw(["NICK", socket.network.nick]);
