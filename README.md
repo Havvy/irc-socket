@@ -14,13 +14,18 @@ npm install simple-irc-socket
 var IrcSocket = require('simple-irc-socket');
 var myConnection = IrcSocket({
     server: 'irc.yournet.net',
+    password: 'server-password',
     nick: 'aBot',
     user: 'node',
     realname: 'Node Simple Socket'
     port: 6667,
-    secure: false
+    secure: false,
+    capab: true
 });
 ```
+
+If `capab: true` is passed to the configuration object the library will send `CAP LS` first to initiate a capabilities negotiation.
+
 ### Dependency Injection ###
 
 A simple irc socket uses a `net.Socket` socket by default. You can pass a
