@@ -164,7 +164,7 @@ Socket.prototype = create(events.EventEmitter.prototype, {
         }
 
         //log(false, message);
-        this.impl.write(message + '\n', 'utf-8');
+        this.impl.write(message + '\r\n', 'utf-8');
     },
 
     isConnected : function () {
