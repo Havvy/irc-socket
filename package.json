@@ -1,16 +1,17 @@
 {
-  "name": "simple-irc-socket",
+  "name": "irc-socket",
   "version": "1.2.1",
   "description": "Simple IRC Socket for usage with IRC libraries.",
   "main": "irc-socket.js",
   "scripts": {
     "test": "jasmine-node spec --verbose"
   },
-  "repository": "https://github.com/Havvy/simple-irc-socket.git",
+  "repository": "https://github.com/Havvy/irc-socket.git",
   "keywords": [
     "irc",
     "socket"
   ],
   "author": "Ryan S. Scheel (havvy)",
+  "contributors": ["Ricki Hastings <ricki@ircanywhere.com> (http://ircanywhere.com)"],
   "license": "BSD"
 }
