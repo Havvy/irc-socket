@@ -105,12 +105,12 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
             socket.impl.on(emitEvent, emitWhenConnected);
         }();
 
-        socket.impl.once('error', function () {
+        socket.impl.on('error', function () {
             socket.connected = false;
             socket.emit('error');
         });
 
-        socket.impl.once('close', function () {
+        socket.impl.on('close', function () {
             socket.connected = false;
             socket.emit('close');
         });
