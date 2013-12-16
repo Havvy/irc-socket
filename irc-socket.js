@@ -28,8 +28,8 @@ var create = function (prototype, properties) {
     return Object.create(prototype, props);
 };
 
-var Socket = module.exports = function Socket (network, GenericSocket) {
-    GenericSocket = GenericSocket || net.Socket;
+var Socket = module.exports = function Socket (network, NetSocket) {
+    NetSocket = NetSocket || net.Socket;
 
     var socket = create(Socket.prototype);
     socket.port = network.port || 6667;
@@ -38,7 +38,7 @@ var Socket = module.exports = function Socket (network, GenericSocket) {
     socket.capab = network.capab || false;
     socket.password = network.password || null;
     socket.network = network;
-    socket.impl = new GenericSocket();
+    socket.impl = new NetSocket();
     socket.connected = false;
 
     socket._setupEvents = function () {
