@@ -59,7 +59,6 @@ var Socket = module.exports = function Socket (network, NetSocket) {
             .filter(function (line) {
                 if (line.slice(0, 4) === 'PING') {
                     socket.raw(['PONG', line.slice(line.indexOf(':'))]);
-                    return false;
                 }
 
                 return true;
@@ -161,7 +160,11 @@ Socket.prototype = create(events.EventEmitter.prototype, {
         }
 
         if (util.isArray(message)) {
-            message = message.join(" ");
+            var msg = [];
+            for (var i = 0; i < message.length; i++) {
+                msg.push((message[i].indexOf(" ") !== -1) ? ":" + message[i] : message[i]);
+            }
+            message = msg.join(" ");
         }
 
         if (message.indexOf('\n') !== -1) {
