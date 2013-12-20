@@ -45,8 +45,10 @@ mySocket.connect();
 
 ## Writing to the Server ##
 To send messages to the server, use socket.raw(). It accepts either a
-string or an array which it will convert into a string by joining with
-a space. The message '''must''' follow the 
+string or an array of Strings. When an array is passed, elments containing
+whitespaces will be interpreted as a trailing parameter, else the element
+will be left as is. The end result will be joined to a String.
+The message '''must''' follow the 
 [IRC protocol](https://irc-wiki.org/RFC 1459).
 
 ```javascript
