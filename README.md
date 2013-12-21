@@ -5,7 +5,7 @@ The socket is a thin wrapper around a generic socket,
 ## Installation ##
 
 ```
-npm install simple-irc-socket
+npm install irc-socket
 ```
 
 ## Instantiation ##
