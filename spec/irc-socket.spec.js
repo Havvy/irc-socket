@@ -55,7 +55,7 @@ describe("IRC Sockets", function () {
             socket.connect();
             socket.end();
             expect(genericsocket.write).toHaveBeenCalledWith('NICK testbot\r\n', 'utf-8');
-            expect(genericsocket.write).toHaveBeenCalledWith('USER testuser 8 * :realbot\r\n', 'utf-8');
+            expect(genericsocket.write).toHaveBeenCalledWith('USER testuser 8 * realbot\r\n', 'utf-8');
         });
 
         it('Sends Ready Events on 001', function () {
