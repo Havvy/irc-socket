@@ -98,7 +98,7 @@ var Socket = module.exports = function Socket (network, NetSocket) {
                 }
 
                 socket.raw(["NICK", socket.network.nick]);
-                socket.raw(["USER", socket.network.user || "user", "8 * :" + socket.network.realname]);
+                socket.raw(["USER", socket.network.user || "user", "8", "*", socket.network.realname]);
             };
 
             socket.impl.on(emitEvent, emitWhenConnected);
