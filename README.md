@@ -26,7 +26,7 @@ var myConnection = IrcSocket({
 
 If `capab: true` is passed to the configuration object the library will send `CAP LS` first to initiate a capabilities negotiation.
 
-### Dependency Injection ###
+### Dependency Management ###
 
 A simple irc socket uses a `net.Socket` socket by default. You can pass a
 seperate generic socket instead in the second parameter.
@@ -120,12 +120,14 @@ This method returns the realname (also called gecos) of the connection.
 
 ## Events ##
 
-The basic-irc-socket is an event emitter. It emits three events.
+The basic-irc-socket is an event emitter. It emits five events.
 
 + ready(): Once the first 001 message has been acknowledged.
 + data(message: String): Every message (including the 001) from the
 sender (inclusive) the the newline (exclusive).
 + close(): Once the implementing socket has been closed.
++ timeout(): When the implementing socket times out.
++ end(): Once the implementing socket emits an 'end' event.
 
 ## Testing ##
 

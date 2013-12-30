@@ -114,6 +114,14 @@ var Socket = module.exports = function Socket (network, NetSocket) {
             socket.emit('close');
         });
 
+        socket.impl.on('end', function () {
+            socket.emit('end');
+        });
+
+        socket.impl.on('timeout', function () {
+            socket.emit('timeout');
+        });
+
         socket.impl.on('data', onData);
         socket.impl.setEncoding('utf-8');
         socket.impl.setNoDelay();
