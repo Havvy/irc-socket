@@ -183,6 +183,10 @@ Socket.prototype = create(events.EventEmitter.prototype, {
         this.impl.write(message + '\r\n', 'utf-8');
     },
 
+    setTimeout: function (timeout, callback) {
+        this.impl.setTimeout(timeout, callback);
+    },
+
     isConnected : function () {
         return this.connected;
     },

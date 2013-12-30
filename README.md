@@ -118,6 +118,12 @@ will otherwise return false.
 
 This method returns the realname (also called gecos) of the connection.
 
+### setTimeout(timeout, [callback]) ###
+
+As per the implementation socket. See
+[Node documentation](http://nodejs.org/api/net.html#net_socket_settimeout_timeout_callback)
+for details.
+
 ## Events ##
 
 The basic-irc-socket is an event emitter. It emits five events.
