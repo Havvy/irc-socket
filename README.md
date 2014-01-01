@@ -152,4 +152,6 @@ The socket you pass gets ignored if you pass `secure: true` in the network confi
 
 The [irc-message](https://github.com/expr/irc-message) module will quickly parse the strings you pass into objects.
 
-For a full IRC framework, take a look at [Tennu](https://github.com/havvy/tennu).
+For a full IRC Bot framework, take a look at [Tennu](https://tennu.github.io).
+
+For long-running IRC Clients, take a look at [IRC Factory](https://github.com/ircanywhere/irc-factory).
