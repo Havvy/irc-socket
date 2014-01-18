@@ -12,6 +12,12 @@
     "socket"
   ],
   "author": "Ryan S. Scheel (havvy)",
-  "contributors": ["Ricki Hastings <ricki@ircanywhere.com> (http://ircanywhere.com)", "Fionn Kelleher <me@fionn.co> (http://fionn.co)"],
-  "license": "BSD"
+  "contributors": [
+    "Ricki Hastings <ricki@ircanywhere.com> (http://ircanywhere.com)",
+    "Fionn Kelleher <me@fionn.co> (http://fionn.co)"
+  ],
+  "license": "BSD",
+  "devDependencies": {
+    "jasmine-node": "~1.13.0"
+  }
 }
