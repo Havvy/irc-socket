@@ -11,11 +11,7 @@ var net = require('net');
 var tls = require('tls');
 var events = require('events');
 var util = require('util');
-
- // var log = function (input, msg) {
- //     var date = new Date();
- //     console.log(Date().toString() + "|" + (input ? "<-" : "->") + "|" + msg);
- // };
+var inspect = require('util').inspect;
 
 var create = function (prototype, properties) {
     if (typeof properties == 'object') {
@@ -28,16 +24,17 @@ var create = function (prototype, properties) {
     return Object.create(prototype, props);
 };
 
-var Socket = module.exports = function Socket (network, NetSocket) {
+var Socket = module.exports = function Socket (config, NetSocket) {
     NetSocket = NetSocket || net.Socket;
 
     var socket = create(Socket.prototype);
-    socket.port = network.port || 6667;
-    socket.netname = network.server;
-    socket.secure = network.secure || false;
-    socket.capab = network.capab || false;
-    socket.password = network.password || null;
-    socket.network = network;
+    socket.port = config.port || 6667;
+    socket.server = config.server;
+    socket.ipv6 = config.ipv6 || false;
+    socket.localAddress = config.localAddress || undefined;
+    socket.secure = config.secure || false;
+    socket.rejectUnauthorized = config.rejectUnauthorized || false;
+    socket.network = config; // FIXME: Only put specific values on the network object.
     socket.impl = new NetSocket();
     socket.connected = false;
 
@@ -50,7 +47,7 @@ var Socket = module.exports = function Socket (network, NetSocket) {
                 onData.buffer = null;
             }
 
-            if (lines[lines.length - 1] !== "") {
+            if (lines[lines.length - 1] !== '') {
                 onData.buffer = lines.pop();
             }
 
@@ -64,7 +61,6 @@ var Socket = module.exports = function Socket (network, NetSocket) {
                 return true;
             })
             .forEach(function (line) {
-                //log(true, line);
                 socket.emit('data', line);
             });
         };
@@ -79,7 +75,7 @@ var Socket = module.exports = function Socket (network, NetSocket) {
             };
 
             socket.impl.on('data', emitWhenReady);
-            socket.on('ready', function remove () {
+            socket.on('ready', function unsubscribeEmitWhenReady () {
                 socket.impl.removeListener('data', emitWhenReady);
             });
         }();
@@ -89,16 +85,16 @@ var Socket = module.exports = function Socket (network, NetSocket) {
             var emitWhenConnected = function () {
                 socket.connected = true;
 
-                if (socket.capab) {
-                    socket.raw(["CAP", "LS"]);
+                if (socket.network.capab) {
+                    socket.raw(['CAP', 'LS']);
                 }
 
-                if (socket.password !== null) {
-                    socket.raw(["PASS", socket.password]);
+                if (typeof socket.network.password === 'string') {
+                    socket.raw(['PASS', socket.network.password]);
                 }
 
-                socket.raw(["NICK", socket.network.nick]);
-                socket.raw(["USER", socket.network.user || "user", "8", "*", socket.network.realname]);
+                socket.raw(['NICK', socket.network.nickname || socket.network.nick]);
+                socket.raw(['USER', socket.network.username || socket.network.user || 'user', '8', '*', socket.network.realname]);
             };
 
             socket.impl.on(emitEvent, emitWhenConnected);
@@ -146,11 +142,13 @@ Socket.prototype = create(events.EventEmitter.prototype, {
         }
 
         if (this.secure) {
-            this.impl = tls.connect(this.port, this.netname, {rejectUnauthorized: false});
+            // FIXME: Cannot choose ipv6, localAddress with TLS
+            // FIXME: Secure does not use NetSocket.
+            this.impl = tls.connect(this.port, this.server, {rejectUnauthorized: this.rejectUnauthorized});
             this._setupEvents();
             // set rejectUnauthorized because most IRC servers don't have certified certificates anyway.
         } else {
-            this.impl.connect(this.port, this.netname);
+            this.impl.connect(this.port, this.server, this.ipv6 ? 6 : 4, this.localAddress);
         }
     },
 
@@ -167,19 +165,16 @@ Socket.prototype = create(events.EventEmitter.prototype, {
             return;
         }
 
-        if (util.isArray(message)) {
-            var msg = [];
-            for (var i = 0; i < message.length; i++) {
-                msg.push((message[i].indexOf(" ") !== -1) ? ":" + message[i] : message[i]);
-            }
-            message = msg.join(" ");
+        if (Array.isArray(message)) {
+            message = message.map(function (m) {
+                return (m.indexOf(' ') !== -1) ? ':' + m : m;
+            }).join(' ');
         }
 
         if (message.indexOf('\n') !== -1) {
             throw new Error('Newline detected in message. Use multiple raws instead.');
         }
 
-        //log(false, message);
         this.impl.write(message + '\r\n', 'utf-8');
     },
 

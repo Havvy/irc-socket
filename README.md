@@ -13,18 +13,34 @@ npm install irc-socket
 ```javascript
 var IrcSocket = require('simple-irc-socket');
 var myConnection = IrcSocket({
-    server: 'irc.yournet.net',
-    password: 'server-password',
-    nick: 'aBot',
-    user: 'node',
-    realname: 'Node Simple Socket'
+    server: 'irc.example.net',
     port: 6667,
+    ipv6: false,
+    localAddress: undefined,  // See net.Socket documents.
     secure: false,
+    rejectUnauthorized: false,
+    nickname: 'aBot',
+    username: 'node',
+    realname: 'Node Simple Socket',
+    password: 'server-password',
     capab: true
 });
 ```
 
-If `capab: true` is passed to the configuration object the library will send `CAP LS` first to initiate a capabilities negotiation.
+The following fields are required:
+
+* server
+* port
+* nickname
+* realname
+
+If `capab: true` is passed to the configuration object the socket will send `CAP LS` first to initiate a capabilities negotiation.
+
+If `ipv6` is true, the socket will connect over ipv6. If false, it will connect over ipv4. The `localAddress` field is for binding
+what IP you connect as. If you don't know that that means, don't define it.
+
+If `secure` is true, then the connection will be over TLS. See `Known Issues` below about using this. `rejectUnauthorized` is `false`
+by default. If your irc server has a valid ssl certificate, you can flip this to true.
 
 ### Dependency Management ###
 
@@ -144,9 +160,15 @@ npm install -g jasmine-node
 npm test
 ```
 
+## Legacy ##
+
+Initialization configuration object can also take `nick` or `user` instead of `nickname` or `username`.
+
 ## Known Issues ##
 
 The socket you pass gets ignored if you pass `secure: true` in the network config.
+
+Likewise, the ipv6 and localAddress properties are also ignored with secure connections.
 
 ## See Also
 
