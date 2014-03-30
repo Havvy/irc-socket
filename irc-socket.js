@@ -100,9 +100,9 @@ var Socket = module.exports = function Socket (config, NetSocket) {
             socket.impl.on(emitEvent, emitWhenConnected);
         }();
 
-        socket.impl.on('error', function () {
+        socket.impl.on('error', function (error) {
             socket.connected = false;
-            socket.emit('error');
+            socket.emit('error', error);
         });
 
         socket.impl.on('close', function () {
