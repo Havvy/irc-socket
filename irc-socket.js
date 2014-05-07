@@ -36,6 +36,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
     socket.rejectUnauthorized = config.rejectUnauthorized || false;
     socket.network = config; // FIXME: Only put specific values on the network object.
     socket.impl = new NetSocket();
+    socket.localPort = socket.impl.localPort;
     socket.connected = false;
 
     socket._setupEvents = function () {
@@ -83,6 +84,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
         void function connectEvent () {
             var emitEvent = (socket.secure) ? 'secureConnect' : 'connect';
             var emitWhenConnected = function () {
+                socket.emit('connect');
                 socket.connected = true;
 
                 if (socket.network.capab) {
