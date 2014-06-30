@@ -151,4 +151,17 @@ describe("IRC Sockets", function () {
             });
         });
     });
+
+    describe("Smiley", function () {
+        it('Sends raw smiley face', function () {
+            var genericsocket = MockGenericSocket();
+            var socket = IrcSocket(network, box(genericsocket));
+            socket.connect();
+            socket.raw(['PRIVMSG', '#smiley-test', ':)']);
+            socket.end();
+            expect(genericsocket.write).toHaveBeenCalledWith('NICK testbot\r\n', 'utf-8');
+            expect(genericsocket.write).toHaveBeenCalledWith('USER testuser 8 * realbot\r\n', 'utf-8');
+            expect(genericsocket.write).toHaveBeenCalledWith('PRIVMSG #smiley-test ::)\r\n', 'utf-8');
+        });
+    });
 });
