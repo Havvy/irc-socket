@@ -84,8 +84,9 @@ var Socket = module.exports = function Socket (config, NetSocket) {
         void function connectEvent () {
             var emitEvent = (socket.secure) ? 'secureConnect' : 'connect';
             var emitWhenConnected = function () {
-                socket.emit('connect');
+                socket.localPort = socket.impl.localPort;
                 socket.connected = true;
+                socket.emit('connect');
 
                 if (socket.network.capab) {
                     socket.raw(['CAP', 'LS']);
