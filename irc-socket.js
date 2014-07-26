@@ -55,7 +55,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
             .filter(function (line) { return line !== ''; })
             .filter(function (line) {
                 if (line.slice(0, 4) === 'PING') {
-                    socket.raw(['PONG', line.slice(line.indexOf(':'))]);
+                    socket.raw(['PONG', line.slice(line.indexOf(':'))].join(' '));
                 }
 
                 return true;
@@ -168,8 +168,14 @@ Socket.prototype = create(events.EventEmitter.prototype, {
         }
 
         if (Array.isArray(message)) {
-            message = message.map(function (m) {
-                return (m.indexOf(' ') !== -1) ? ':' + m : m;
+            message = message.map(function (m, index) {
+                // Prepend a : if parameter has a space or if it's the last element and starts with :.
+                if (m.indexOf(' ') !== -1 ||
+                    (index === (message.length - 1) && m[0] === ':')) {
+                    return ':' + m;
+                } else {
+                    return m;
+                }
             }).join(' ');
         }
 
