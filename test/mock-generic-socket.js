@@ -1,20 +1,21 @@
-var EEProto = require('events').EventEmitter.prototype;
+const EEProto = require('events').EventEmitter.prototype;
+const sinon = require('sinon');
 
-var create = function (prototype, properties) {
+const create = function (prototype, properties) {
   if (typeof properties !== 'object') {
     return Object.create(prototype);
   }
 
-  var props = {};
+  const props = {};
   Object.keys(properties).forEach(function (key) {
     props[key] = { value: properties[key] };
   });
   return Object.create(prototype, props);
 };
 
-var GenericMockSocket = module.exports = function GenericMockSocket () {
+const GenericMockSocket = module.exports = function GenericMockSocket () {
   return create(EEProto, {
-    connect : jasmine.createSpy('connect').andCallFake(function () {
+    connect : sinon.spy(function () {
       this.emit("connect");
       setTimeout((function () {
         this.emit("data", GenericMockSocket.messages.ping);
@@ -24,9 +25,9 @@ var GenericMockSocket = module.exports = function GenericMockSocket () {
     }),
 
     end :  function () { this.emit('close'); },
-    write : jasmine.createSpy("mocksocket.write"),
-    setNoDelay : jasmine.createSpy(),
-    setEncoding : jasmine.createSpy()
+    write : sinon.spy(),
+    setNoDelay : sinon.spy(),
+    setEncoding : sinon.spy()
   });
 };
 

@@ -1,0 +1,154 @@
+const sinon = require('sinon');
+const assert = require('better-assert');
+// const equal = require('deep-eql');
+const inspect = require('util').inspect;
+const format = require('util').format;
+
+const MockGenericSocket = require('./mock-generic-socket.js');
+const IrcSocket = require('../irc-socket.js');
+
+const network = Object.freeze({
+    nick : 'testbot',
+    user : 'testuser',
+    server : 'irc.test.net',
+    realname: 'realbot',
+    port: 6667
+});
+
+const box = function (value) {
+    return function () {
+        return value;
+    };
+};
+
+describe("Helper Functions", function () {
+    describe("isReady", function () {
+        it("emits true for 001 messages", function () {
+            assert(IrcSocket.isReady(MockGenericSocket.messages['001']) === true);
+        });
+
+        it("emits false for everything else", function () {
+            assert(IrcSocket.isReady(MockGenericSocket.messages.ping) === false);
+        });
+    });
+});
+
+describe("IRC Sockets", function () {
+    describe("Know when connected,", function () {
+        var socket;
+
+        beforeEach(function () {
+            socket = IrcSocket(network, MockGenericSocket);
+        });
+
+        it('is not connected at instantiation', function () {
+            socket = IrcSocket(network, MockGenericSocket);
+            assert(socket.isConnected() === false);
+        });
+
+        it('connected once connected.', function () {
+            socket.connect();
+            assert(socket.isConnected() === true);
+        });
+
+        it('not connected once ended', function () {
+            socket.connect();
+            socket.end();
+            assert(socket.isConnected() === false);
+        });
+
+        afterEach(function () {
+            socket.end();
+        });
+    });
+
+    describe("Startup procedures", function () {
+        it('Sending NICK and USER to the server on connection', function () {
+            const genericsocket = MockGenericSocket();
+            const socket = IrcSocket(network, box(genericsocket));
+            socket.connect();
+            socket.end();
+            assert(genericsocket.write.calledWith('NICK testbot\r\n', 'utf-8'));
+            assert(genericsocket.write.calledWith('USER testuser 8 * realbot\r\n', 'utf-8'));
+        });
+
+        it('Sends Ready Events on 001', function (done) {
+            const socket = IrcSocket(network, MockGenericSocket);
+
+            socket.on('ready', function checkForReady () {
+                socket.end();
+                done();
+            });
+
+            socket.connect();
+        });
+    });
+
+    describe('handles pings and timeouts', function () {
+        var genericsocket, socket;
+
+        beforeEach(function () {
+            genericsocket = MockGenericSocket();
+            socket = IrcSocket(network, box(genericsocket));
+        });
+
+        afterEach(function () {
+            socket.end();
+        });
+
+        it('responds to pings', function (done) {
+            socket.on('ready', function () {
+                assert(genericsocket.write.calledWith('PONG :PINGMESSAGE\r\n', 'utf-8'));
+                done();
+            });
+
+            socket.connect();
+        });
+    });
+
+    describe('Emitted data', function () {
+        var genericsocket, socket, spy;
+
+        beforeEach(function (done) {
+            genericsocket = MockGenericSocket();
+            socket = IrcSocket(network, box(genericsocket));
+            spy = sinon.spy();
+            socket.on('data', spy);
+            socket.connect();
+
+            socket.on('ready', function () {
+                done();
+            });
+        });
+
+        afterEach(function () {
+            socket.end();
+        });
+
+        it("emits each IRC line in a data event", function (done) {
+            // The first message after the ready event is the 001 message.
+
+            socket.on('data', function (msg) {
+                assert(spy.calledWith(':irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost'));
+                done();
+            });
+        });
+
+        //  :/
+        it("handles lines that don't fit in a single impl socket package", function (done) {
+            var datas = 0;
+            socket.on('data', function () {
+                datas += 1;
+
+                if (datas === 3) {
+                    assert(spy.calledWith("PING :ABC"));
+                    assert(spy.calledWith("PRIVMSG somebody :This is a really long message!"));
+                    done();
+                }
+            });
+
+            genericsocket.emit('data', MockGenericSocket.messages.multi1);
+            genericsocket.emit('data', MockGenericSocket.messages.multi2);
+        });
+    });
+});
