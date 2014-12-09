@@ -40,7 +40,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
 
     socket._setupEvents = function () {
         var onData = function onData (data) {
-            lines = data.split('\r\n');
+            var lines = data.split('\r\n');
 
             if (onData.buffer) {
                 lines[0] = onData.buffer + lines[0];
@@ -53,19 +53,35 @@ var Socket = module.exports = function Socket (config, NetSocket) {
 
             lines
             .filter(function (line) { return line !== ''; })
-            .filter(function (line) {
-                if (line.slice(0, 4) === 'PING') {
-                    socket.raw(['PONG', line.slice(line.indexOf(':'))]);
-                }
-
-                return true;
-            })
             .forEach(function (line) {
                 socket.emit('data', line);
             });
         };
 
         onData.buffer = null;
+
+        var onLine = function onLine(line) {
+            if (line.slice(0, 4) === 'PING') {
+                socket.raw(['PONG', line.slice(line.indexOf(':'))]);
+
+                if (onLine.timeoutInterval === 0) {
+                    onLine.timeoutInterval = -(Date.now());
+                } else if (onLine.timeoutInterval < 0) {
+                    onLine.timeoutInterval = (Date.now() + onLine.timeoutInterval) * 3;
+                    onLine.timeout = setTimeout(function () {
+                        socket.emit("timeout");
+                    }, onLine.timeoutInterval);
+                } else {
+                    clearTimeout(timeout);
+                    onLine.timeout = setTimeout(function () {
+                        socket.emit("timeout");
+                    }, onLine.timeoutInterval);
+                }
+            }
+        }
+
+        onLine.timeoutInterval = 0;
+        onLine.timeout = null;
 
         void function readyEvent () {
             var emitWhenReady = function (data) {
@@ -123,6 +139,11 @@ var Socket = module.exports = function Socket (config, NetSocket) {
         socket.impl.on('data', onData);
         socket.impl.setEncoding('utf-8');
         socket.impl.setNoDelay();
+
+        socket.on('data', onLine);
+        socket.on('timeout', function () {
+            socket.end();
+        });
     };
 
     socket._setupEvents();
@@ -179,7 +200,7 @@ Socket.prototype = create(events.EventEmitter.prototype, {
 
         this.impl.write(message + '\r\n', 'utf-8');
     },
-
+    
     setTimeout: function (timeout, callback) {
         this.impl.setTimeout(timeout, callback);
     },

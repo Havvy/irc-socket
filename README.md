@@ -100,7 +100,8 @@ mySocket.on('data', function (message) {
 
 The raw method does not allow the usage of newline characters. This is
 mostly a security concern, so that if the user of the Socket doesn't
-validate input, an evil user can't send a command causing the bot to quit:
+validate input correctly, an evil user can't send a command causing
+the bot to quit:
 
 ```
 <eviluser>!say SUCKAS \nQUIT :Mua ha ha
@@ -122,6 +123,21 @@ look like the following:
 :NyanCat!Mibbit@mib-FFFFFFFF.redacted.com QUIT :Quit: http://www.mibbit.com ajax IRC Client
 ERROR :Closing Link: Havvy[127-00-00-00.redacted.com] (Quit: I got the messages I want.)
 ```
+
+## Timeouts ##
+
+The IRC socket will listen to ping messages and respond to them 
+appropriately, so you do not need to handle this yourself.
+
+Furthermore, if a `PING` hasn't been received from the network within
+thirce the normal time it takes for a `PING` message to arrive, the
+socket will assume the connection was dropped and end the stream.
+
+Should that not be good enough, you can always use
+`setTimeout(number, optionalCallback)` to use the implementing socket's
+(usually a net.Socket) timeout mechanisms.
+
+You can listen to the `"timeout"` event for when this occurs.
 
 ## Utility Methods ##
 
@@ -148,7 +164,7 @@ The basic-irc-socket is an event emitter. It emits five events.
 + data(message: String): Every message (including the 001) from the
 sender (inclusive) the the newline (exclusive).
 + close(): Once the implementing socket has been closed.
-+ timeout(): When the implementing socket times out.
++ timeout(): When either this or the implenting socket time out.
 + end(): Once the implementing socket emits an 'end' event.
 
 ## Testing ##

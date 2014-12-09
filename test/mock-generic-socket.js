@@ -13,13 +13,13 @@ const create = function (prototype, properties) {
   return Object.create(prototype, props);
 };
 
-const GenericMockSocket = module.exports = function GenericMockSocket () {
+const MockGenericSocket = module.exports = function MockGenericSocket () {
   return create(EEProto, {
     connect : sinon.spy(function () {
       this.emit("connect");
       setTimeout((function () {
-        this.emit("data", GenericMockSocket.messages.ping);
-        this.emit("data", GenericMockSocket.messages['001']);
+        this.emit("data", MockGenericSocket.messages.ping);
+        this.emit("data", MockGenericSocket.messages['001']);
         this.isConnected = true;
       }).bind(this), 0);
     }),
@@ -31,9 +31,9 @@ const GenericMockSocket = module.exports = function GenericMockSocket () {
   });
 };
 
-GenericMockSocket.messages = {
+MockGenericSocket.messages = {
   "001" : ":irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost\r\n",
   ping : 'PING :PINGMESSAGE\r\n',
   multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re",
-  multi2: "ally long message!\r\n" 
+  multi2: "ally long message!\r\n"
 };

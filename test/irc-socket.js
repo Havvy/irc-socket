@@ -4,6 +4,9 @@ const assert = require('better-assert');
 const inspect = require('util').inspect;
 const format = require('util').format;
 
+const debug = false;
+const logfn = debug ? console.log.bind(console) : function () {};
+
 const MockGenericSocket = require('./mock-generic-socket.js');
 const IrcSocket = require('../irc-socket.js');
 
@@ -84,7 +87,7 @@ describe("IRC Sockets", function () {
         });
     });
 
-    describe('handles pings and timeouts', function () {
+    describe('handles pings', function () {
         var genericsocket, socket;
 
         beforeEach(function () {
@@ -103,6 +106,70 @@ describe("IRC Sockets", function () {
             });
 
             socket.connect();
+        });
+    });
+
+    describe('timeouts', function () {
+        var genericsocket, socket, clock;
+
+        beforeEach(function (done) {
+            genericsocket = MockGenericSocket();
+            socket = IrcSocket(network, box(genericsocket));
+            clock = sinon.useFakeTimers();
+            socket.on('ready', function () {
+                done();
+            });
+            clock.tick(1);
+            socket.connect();
+            clock.tick(1);
+        });
+
+        afterEach(function () {
+            clock.restore();
+            socket.end();
+        });
+
+        it('handles timeouts', function (done) {
+            var timeout_allowed = false;
+
+            socket.on('timeout', function () { 
+                assert(timeout_allowed);
+                done();
+            });
+
+            // Send a ping 1000 time units in the future.
+            logfn("Advancing time by 1000");
+            clock.tick(1000);
+            logfn("Emitting ping.");
+            genericsocket.emit('data', MockGenericSocket.messages.ping);
+
+            // setImmediate to let other things happens.
+            setImmediate(function () {
+                // Move 5000 time units into the future, where no ping
+                // from the server means we have timed out.
+                timeout_allowed = true;
+                logfn("Advancing time by 5000");
+                clock.tick(5000);
+            });
+
+            // Let the setImmediate happen.
+            logfn("Advancing time by 1");
+            clock.tick(1);
+        });
+
+        it('ends the socket when detecting a timeout', function (done) {
+            socket.on('close', function () {
+                done();
+            });
+
+            clock.tick(1000);
+            genericsocket.emit("data", MockGenericSocket.messages.ping);
+
+            setImmediate(function () {
+                clock.tick(5000);
+            });
+
+            clock.tick(1);
         });
     });
 
