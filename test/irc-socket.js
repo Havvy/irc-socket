@@ -171,6 +171,29 @@ describe("IRC Sockets", function () {
 
             clock.tick(1);
         });
+
+        it('goes through multiple pings without timing out', function (done) {
+            socket.on('timeout', function () {
+                assert(false);
+            });
+
+            var pingsLeft = 4;
+            void function pingLoop () {
+                if (pingsLeft === 0) {
+                    done();
+                    return;
+                }
+
+                logfn("Ticking 1000 time units");
+                clock.tick(1000);
+                genericsocket.emit("data", MockGenericSocket.messages.ping);
+                pingsLeft -= 1;
+                logfn("pingsLeft is now " + pingsLeft);
+
+                setImmediate(pingLoop)
+                clock.tick(1);
+            }();
+        });
     });
 
     describe('Emitted data', function () {

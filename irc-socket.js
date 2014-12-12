@@ -72,7 +72,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                         socket.emit("timeout");
                     }, onLine.timeoutInterval);
                 } else {
-                    clearTimeout(timeout);
+                    clearTimeout(onLine.timeout);
                     onLine.timeout = setTimeout(function () {
                         socket.emit("timeout");
                     }, onLine.timeoutInterval);
