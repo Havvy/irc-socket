@@ -71,12 +71,15 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                     onLine.timeout = setTimeout(function () {
                         socket.emit("timeout");
                     }, onLine.timeoutInterval);
-                } else {
-                    clearTimeout(onLine.timeout);
-                    onLine.timeout = setTimeout(function () {
-                        socket.emit("timeout");
-                    }, onLine.timeoutInterval);
                 }
+            }
+
+            // Any incoming message should reset the timeout.
+            if (onLine.timeoutInterval > 0) {
+                clearTimeout(onLine.timeout);
+                onLine.timeout = setTimeout(function () {
+                    socket.emit("timeout");
+                }, onLine.timeoutInterval);
             }
         }
 
