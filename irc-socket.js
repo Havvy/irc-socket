@@ -7,14 +7,14 @@
  * Send messages to server with .raw(String) method.
  */
 
-var net = require('net');
-var tls = require('tls');
-var events = require('events');
-var util = require('util');
-var inspect = require('util').inspect;
+var net = require("net");
+var tls = require("tls");
+var events = require("events");
+var util = require("util");
+var inspect = require("util").inspect;
 
 var create = function (prototype, properties) {
-    if (typeof properties == 'object') {
+    if (typeof properties == "object") {
         var props = {};
         Object.keys(properties).forEach(function (key) {
             props[key] = { value: properties[key] };
@@ -40,29 +40,29 @@ var Socket = module.exports = function Socket (config, NetSocket) {
 
     socket._setupEvents = function () {
         var onData = function onData (data) {
-            var lines = data.split('\r\n');
+            var lines = data.split("\r\n");
 
             if (onData.buffer) {
                 lines[0] = onData.buffer + lines[0];
                 onData.buffer = null;
             }
 
-            if (lines[lines.length - 1] !== '') {
+            if (lines[lines.length - 1] !== "") {
                 onData.buffer = lines.pop();
             }
 
             lines
-            .filter(function (line) { return line !== ''; })
+            .filter(function (line) { return line !== ""; })
             .forEach(function (line) {
-                socket.emit('data', line);
+                socket.emit("data", line);
             });
         };
 
         onData.buffer = null;
 
         var onLine = function onLine(line) {
-            if (line.slice(0, 4) === 'PING') {
-                socket.raw(['PONG', line.slice(line.indexOf(':'))]);
+            if (line.slice(0, 4) === "PING") {
+                socket.raw(["PONG", line.slice(line.indexOf(":"))]);
 
                 if (onLine.timeoutInterval === 0) {
                     onLine.timeoutInterval = -(Date.now());
@@ -89,62 +89,65 @@ var Socket = module.exports = function Socket (config, NetSocket) {
         void function readyEvent () {
             var emitWhenReady = function (data) {
                 if (Socket.isReady(data)) {
-                    socket.emit('ready');
+                    socket.emit("ready");
                 }
             };
 
-            socket.impl.on('data', emitWhenReady);
-            socket.on('ready', function unsubscribeEmitWhenReady () {
-                socket.impl.removeListener('data', emitWhenReady);
+            socket.impl.on("data", emitWhenReady);
+            socket.on("ready", function unsubscribeEmitWhenReady () {
+                socket.impl.removeListener("data", emitWhenReady);
             });
         }();
 
         void function connectEvent () {
-            var emitEvent = (socket.secure) ? 'secureConnect' : 'connect';
+            var emitEvent = (socket.secure) ? "secureConnect" : "connect";
             var emitWhenConnected = function () {
                 socket.localPort = socket.impl.localPort;
                 socket.connected = true;
-                socket.emit('connect');
+                socket.emit("connect");
 
                 if (socket.network.capab) {
-                    socket.raw(['CAP', 'LS']);
+                    socket.raw(["CAP", "LS"]);
                 }
 
-                if (typeof socket.network.password === 'string') {
-                    socket.raw(['PASS', socket.network.password]);
+                if (typeof socket.network.password === "string") {
+                    socket.raw(["PASS", socket.network.password]);
                 }
 
-                socket.raw(['NICK', socket.network.nickname || socket.network.nick]);
-                socket.raw(['USER', socket.network.username || socket.network.user || 'user', '8', '*', socket.network.realname]);
+                socket.raw(["NICK", socket.network.nickname || socket.network.nick]);
+                socket.raw(["USER", socket.network.username || socket.network.user || "user", "8", "*", socket.network.realname]);
             };
 
             socket.impl.on(emitEvent, emitWhenConnected);
         }();
 
-        socket.impl.on('error', function (error) {
+        socket.impl.on("error", function (error) {
             socket.connected = false;
-            socket.emit('error', error);
+            socket.emit("error", error);
         });
 
-        socket.impl.on('close', function () {
+        socket.impl.on("close", function () {
             socket.connected = false;
-            socket.emit('close');
+            socket.emit("close");
         });
 
-        socket.impl.on('end', function () {
-            socket.emit('end');
+        socket.impl.on("end", function () {
+            socket.emit("end");
+
+            // Clean up our timeout.
+            clearTimeout(onLine.timeout);
         });
 
-        socket.impl.on('timeout', function () {
-            socket.emit('timeout');
+        socket.impl.on("timeout", function () {
+            socket.emit("timeout");
         });
 
-        socket.impl.on('data', onData);
-        socket.impl.setEncoding('utf-8');
+        socket.impl.on("data", onData);
+        socket.impl.setEncoding("utf-8");
         socket.impl.setNoDelay();
 
-        socket.on('data', onLine);
-        socket.on('timeout', function () {
+        socket.on("data", onLine);
+        socket.on("timeout", function () {
             socket.end();
         });
     };
@@ -155,10 +158,10 @@ var Socket = module.exports = function Socket (config, NetSocket) {
 };
 
 Socket.isReady = function (data) {
-    // We are 'ready' when we get a 001 message.
-    return data.split('\r\n')
-    .filter(function (line) { return line !== ''; })
-    .some(function (line) { return line.split(' ')[1] === '001'; });
+    // We are "ready" when we get a 001 message.
+    return data.split("\r\n")
+    .filter(function (line) { return line !== ""; })
+    .some(function (line) { return line.split(" ")[1] === "001"; });
 };
 
 Socket.prototype = create(events.EventEmitter.prototype, {
@@ -193,15 +196,15 @@ Socket.prototype = create(events.EventEmitter.prototype, {
 
         if (Array.isArray(message)) {
             message = message.map(function (m) {
-                return (m.indexOf(' ') !== -1) ? ':' + m : m;
-            }).join(' ');
+                return (m.indexOf(" ") !== -1) ? ":" + m : m;
+            }).join(" ");
         }
 
-        if (message.indexOf('\n') !== -1) {
-            throw new Error('Newline detected in message. Use multiple raws instead.');
+        if (message.indexOf("\n") !== -1) {
+            throw new Error("Newline detected in message. Use multiple raws instead.");
         }
 
-        this.impl.write(message + '\r\n', 'utf-8');
+        this.impl.write(message + "\r\n", "utf-8");
     },
     
     setTimeout: function (timeout, callback) {
