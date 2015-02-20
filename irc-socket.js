@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  *
  * IRC Socket
@@ -10,24 +12,20 @@
 var net = require("net");
 var tls = require("tls");
 var events = require("events");
-var util = require("util");
 var inspect = require("util").inspect;
 
-var create = function (prototype, properties) {
-    if (typeof properties == "object") {
-        var props = {};
-        Object.keys(properties).forEach(function (key) {
-            props[key] = { value: properties[key] };
-        });
-    }
+var intoPropertyDescriptors = function (object) {
+    Object.keys(object).forEach(function (key) {
+        object[key] = { value: object[key] };
+    });
 
-    return Object.create(prototype, props);
+    return object;
 };
 
 var Socket = module.exports = function Socket (config, NetSocket) {
     NetSocket = NetSocket || net.Socket;
 
-    var socket = create(Socket.prototype);
+    var socket = Object.create(Socket.prototype);
     socket.port = config.port || 6667;
     socket.server = config.server;
     socket.ipv6 = config.ipv6 || false;
@@ -39,49 +37,48 @@ var Socket = module.exports = function Socket (config, NetSocket) {
     socket.connected = false;
 
     socket._setupEvents = function () {
-        var onData = function onData (data) {
-            var lines = data.split("\r\n");
+        var onData = function () {
+            var emitLine = socket.emit.bind(socket, "data");
+            var lastLine = "";
 
-            if (onData.buffer) {
-                lines[0] = onData.buffer + lines[0];
-                onData.buffer = null;
-            }
+            return function onData (data) {
+                // The data event will occassionally only be partially
+                // complete. The last line will not end with "\r\n", and
+                // need to be appended to the beginning of the first line.
+                var lines = data.split("\r\n");
+                lines[0] = lastLine + lines[0];
+                lastLine = lines.pop();
+                lines.forEach(emitLine);
+            };
+        }();
 
-            if (lines[lines.length - 1] !== "") {
-                onData.buffer = lines.pop();
-            }
+        var onLine = function () {
+            var timeoutInterval = 0;
+            var timeout = null;
 
-            lines
-            .filter(function (line) { return line !== ""; })
-            .forEach(function (line) {
-                socket.emit("data", line);
-            });
-        };
+            return function onLine(line) {
+                if (line.slice(0, 4) === "PING") {
+                    socket.raw(["PONG", line.slice(line.indexOf(":"))]);
 
-        onData.buffer = null;
-
-        var onLine = function onLine(line) {
-            if (line.slice(0, 4) === "PING") {
-                socket.raw(["PONG", line.slice(line.indexOf(":"))]);
-
-                if (onLine.timeoutInterval === 0) {
-                    onLine.timeoutInterval = -(Date.now());
-                } else if (onLine.timeoutInterval < 0) {
-                    onLine.timeoutInterval = (Date.now() + onLine.timeoutInterval) * 3;
-                    onLine.timeout = setTimeout(function () {
-                        socket.emit("timeout");
-                    }, onLine.timeoutInterval);
+                    if (timeoutInterval === 0) {
+                        timeoutInterval = -(Date.now());
+                    } else if (timeoutInterval < 0) {
+                        timeoutInterval = (Date.now() + timeoutInterval) * 3;
+                        timeout = setTimeout(function () {
+                            socket.emit("timeout");
+                        }, timeoutInterval);
+                    }
                 }
-            }
 
-            // Any incoming message should reset the timeout.
-            if (onLine.timeoutInterval > 0) {
-                clearTimeout(onLine.timeout);
-                onLine.timeout = setTimeout(function () {
-                    socket.emit("timeout");
-                }, onLine.timeoutInterval);
-            }
-        }
+                // Any incoming message should reset the timeout.
+                if (timeoutInterval > 0) {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(function () {
+                        socket.emit("timeout");
+                    }, timeoutInterval);
+                }
+            };
+        }();
 
         onLine.timeoutInterval = 0;
         onLine.timeout = null;
@@ -164,7 +161,7 @@ Socket.isReady = function (data) {
     .some(function (line) { return line.split(" ")[1] === "001"; });
 };
 
-Socket.prototype = create(events.EventEmitter.prototype, {
+Socket.prototype = Object.create(events.EventEmitter.prototype, intoPropertyDescriptors({
     connect : function () {
         if (this.isConnected()) {
             return;
@@ -218,4 +215,4 @@ Socket.prototype = create(events.EventEmitter.prototype, {
     getRealName : function () {
         return this._realname;
     }
-});
+}));
