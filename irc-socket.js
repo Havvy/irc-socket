@@ -80,6 +80,23 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                 if (line.slice(0, 4) === "PING") {
                     socket.raw(["PONG", line.slice(line.indexOf(":"))]);
 
+                    // If we don't a message in three times the period
+                    // a network sends the first two PINGs out, then
+                    // we can assume that we've been disconnected, and
+                    // thus should end the session.
+                    //
+                    // This is a bit janky because most servers only
+                    // send PING messages if the client has not sent
+                    // a message within its ping duration.
+                    //
+                    // If a connection joins a channel and just keeps
+                    // saying things to the channel every couple seconds
+                    // without anybody else saying anything, it's possible
+                    // the connection will be disconnected.
+                    //
+                    // If anybody knows a better way of detecting that
+                    // we're no longer receiving messages from the server,
+                    // please file an issue explaining or send a pull request.
                     if (timeoutInterval === 0) {
                         timeoutInterval = -(Date.now());
                     } else if (timeoutInterval < 0) {
@@ -99,9 +116,6 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                 }
             };
         }();
-
-        onLine.timeoutInterval = 0;
-        onLine.timeout = null;
 
         void function readyEvent () {
             var emitWhenReady = function (data) {
