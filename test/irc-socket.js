@@ -11,8 +11,8 @@ const MockGenericSocket = require('./mock-generic-socket.js');
 const IrcSocket = require('../irc-socket.js');
 
 const network = Object.freeze({
-    nick : 'testbot',
-    user : 'testuser',
+    nickname : 'testbot',
+    username : 'testuser',
     server : 'irc.test.net',
     realname: 'realbot',
     port: 6667
@@ -72,7 +72,9 @@ describe("IRC Sockets", function () {
             socket.connect();
             socket.end();
             assert(genericsocket.write.calledWith('NICK testbot\r\n', 'utf-8'));
-            assert(genericsocket.write.calledWith('USER testuser 8 * realbot\r\n', 'utf-8'));
+
+            logfn(format("write(\"%s\")", genericsocket.write.secondCall.args[0]));
+            assert(genericsocket.write.calledWith('USER testuser 8 * :realbot\r\n', 'utf-8'));
         });
 
         it('Sends Ready Events on 001', function (done) {

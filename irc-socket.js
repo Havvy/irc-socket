@@ -10,9 +10,10 @@
  */
 
 var net = require("net");
-var tls = require("tls");
-var events = require("events");
+var TlsSocket = require("tls").TLSSocket;
+var EventEmitter = require("events").EventEmitter;
 var inspect = require("util").inspect;
+var format = require("util").format;
 
 var intoPropertyDescriptors = function (object) {
     Object.keys(object).forEach(function (key) {
@@ -20,6 +21,20 @@ var intoPropertyDescriptors = function (object) {
     });
 
     return object;
+};
+
+var includes = function (array, value) {
+    return array.indexOf(value) !== -1;
+};
+
+var pick = function (object, keys) {
+    var newObject = Object.create(Object.getPrototypeOf(object));
+
+    Object.keys(object)
+    .filter(function (key) { return includes(keys, key); })
+    .forEach(function (key) { newObject[key] = object[key]; });
+
+    return newObject;
 };
 
 var Socket = module.exports = function Socket (config, NetSocket) {
@@ -32,9 +47,14 @@ var Socket = module.exports = function Socket (config, NetSocket) {
     socket.localAddress = config.localAddress || undefined;
     socket.secure = config.secure || false;
     socket.rejectUnauthorized = config.rejectUnauthorized || false;
-    socket.network = config; // FIXME: Only put specific values on the network object.
+    socket.network = pick(config, ["nickname", "username", "realname", "password", "capabilities"]);
     socket.impl = new NetSocket();
     socket.connected = false;
+
+    socket.impl = new NetSocket();
+    if (config.secure) {
+        socket.impl = new TlsSocket(socket.impl, { rejectUnauthorized: false });
+    }
 
     socket._setupEvents = function () {
         var onData = function () {
@@ -111,8 +131,8 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                     socket.raw(["PASS", socket.network.password]);
                 }
 
-                socket.raw(["NICK", socket.network.nickname || socket.network.nick]);
-                socket.raw(["USER", socket.network.username || socket.network.user || "user", "8", "*", socket.network.realname]);
+                socket.raw(["NICK", socket.network.nickname]);
+                socket.raw(format("USER %s 8 * :%s", socket.network.username || "user", socket.network.realname));
             };
 
             socket.impl.on(emitEvent, emitWhenConnected);
@@ -161,21 +181,13 @@ Socket.isReady = function (data) {
     .some(function (line) { return line.split(" ")[1] === "001"; });
 };
 
-Socket.prototype = Object.create(events.EventEmitter.prototype, intoPropertyDescriptors({
+Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors({
     connect : function () {
         if (this.isConnected()) {
             return;
         }
 
-        if (this.secure) {
-            // FIXME: Cannot choose ipv6, localAddress with TLS
-            // FIXME: Secure does not use NetSocket.
-            this.impl = tls.connect(this.port, this.server, {rejectUnauthorized: this.rejectUnauthorized});
-            this._setupEvents();
-            // set rejectUnauthorized because most IRC servers don't have certified certificates anyway.
-        } else {
-            this.impl.connect(this.port, this.server, this.ipv6 ? 6 : 4, this.localAddress);
-        }
+        this.impl.connect(this.port, this.server, this.ipv6 ? 6 : 4, this.localAddress);
     },
 
     end : function () {
