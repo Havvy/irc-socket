@@ -45,14 +45,14 @@ var Socket = module.exports = function Socket (config, NetSocket) {
     socket.server = config.server;
     socket.ipv6 = config.ipv6 || false;
     socket.localAddress = config.localAddress || undefined;
-    socket.secure = config.secure || false;
+    socket.tls = config.tls || false;
     socket.rejectUnauthorized = config.rejectUnauthorized || false;
     socket.network = pick(config, ["nickname", "username", "realname", "password", "capabilities"]);
     socket.impl = new NetSocket();
     socket.connected = false;
 
     socket.impl = new NetSocket();
-    if (config.secure) {
+    if (config.tls) {
         socket.impl = new TlsSocket(socket.impl, { rejectUnauthorized: false });
     }
 
