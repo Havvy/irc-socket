@@ -73,10 +73,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
         }();
 
         var onLine = function () {
-            var timeoutInterval = 0;
-            var timeout = null;
-
-            return function onLine(line) {
+            var onLine = function onLine(line) {
                 if (line.slice(0, 4) === "PING") {
                     socket.raw(["PONG", line.slice(line.indexOf(":"))]);
 
@@ -97,38 +94,37 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                     // If anybody knows a better way of detecting that
                     // we're no longer receiving messages from the server,
                     // please file an issue explaining or send a pull request.
-                    if (timeoutInterval === 0) {
-                        timeoutInterval = -(Date.now());
-                    } else if (timeoutInterval < 0) {
-                        timeoutInterval = (Date.now() + timeoutInterval) * 3;
-                        timeout = setTimeout(function () {
+                    if (onLine.timeoutInterval === 0) {
+                        onLine.timeoutInterval = -(Date.now());
+                    } else if (onLine.timeoutInterval < 0) {
+                        onLine.timeoutInterval = (Date.now() + onLine.timeoutInterval) * 3;
+                        onLine.timeout = setTimeout(function () {
                             socket.emit("timeout");
-                        }, timeoutInterval);
+                        }, onLine.timeoutInterval);
                     }
                 }
 
                 // Any incoming message should reset the timeout.
-                if (timeoutInterval > 0) {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(function () {
+                if (onLine.timeoutInterval > 0) {
+                    clearTimeout(onLine.timeout);
+                    onLine.timeout = setTimeout(function () {
                         socket.emit("timeout");
-                    }, timeoutInterval);
+                    }, onLine.timeoutInterval);
                 }
             };
+
+            onLine.timeoutInterval = 0;
+            onLine.timeout = null;
+
+            return onLine;
         }();
 
-        void function readyEvent () {
-            var emitWhenReady = function (data) {
-                if (Socket.isReady(data)) {
-                    socket.emit("ready");
-                }
-            };
-
-            socket.impl.on("data", emitWhenReady);
-            socket.on("ready", function unsubscribeEmitWhenReady () {
+        socket.impl.on("data", function emitWhenReady (data) {
+            if (Socket.isReady(data)) {
                 socket.impl.removeListener("data", emitWhenReady);
-            });
-        }();
+                socket.emit("ready");
+            }
+        });
 
         void function connectEvent () {
             var emitEvent = (socket.secure) ? "secureConnect" : "connect";
