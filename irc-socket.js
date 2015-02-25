@@ -47,7 +47,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
     socket.localAddress = config.localAddress || undefined;
     socket.tls = config.tls || false;
     socket.rejectUnauthorized = config.rejectUnauthorized || false;
-    socket.network = pick(config, ["nickname", "username", "realname", "password", "capabilities"]);
+    socket.network = pick(config, ["proxy", "password", "capabilities", "username", "realname", "nicknames"]);
     socket.impl = new NetSocket();
     socket.connected = false;
 
@@ -133,12 +133,38 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                 socket.connected = true;
                 socket.emit("connect");
 
-                if (socket.network.capab) {
-                    socket.raw(["CAP", "LS"]);
+                // Promises?
+                //-1. Send WEBIRC password user hostname ip
+                // 0. Send PASS.
+                // 1. CAP LS
+                // 2. CAP REQ required
+                // 2a. If CAP REQ fails for required capabilities, QUIT; return;
+                // 3. CAP REQ wants, one at a time.
+                // 3a. Store true if succeeded.
+                // 3b. Store false if failed.
+                // 4. Send USER
+                // 5. Send NICK
+                // 5a. If error event, send next NICK
+                // 5b. If 001, unsubscribe error handlers.
+
+                // 0. Send WEBIRC
+                if (typeof socket.network.proxy === "object") {
+                    var proxy = socket.network.proxy;
+                    socket.raw(["WEBIRC", proxy.password, proxy.username, proxy.hostname, proxy.ip]);
                 }
 
+                // TODO(Havvy): If WEBIRC fails, then fail.
+
+                // 1. Send PASS
                 if (typeof socket.network.password === "string") {
                     socket.raw(["PASS", socket.network.password]);
+                }
+
+                // TODO(Havvy): If PASS fails, then fail.
+
+                // 2.
+                if (socket.network.capabilities) {
+                    socket.raw(["CAP", "LS"]);
                 }
 
                 socket.raw(["NICK", socket.network.nickname]);
