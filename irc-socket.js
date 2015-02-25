@@ -162,13 +162,27 @@ var Socket = module.exports = function Socket (config, NetSocket) {
 
                 // TODO(Havvy): If PASS fails, then fail.
 
-                // 2.
+                // 2-3.
                 if (socket.network.capabilities) {
+                    var capabilities = socket.network.capabilities;
                     socket.raw(["CAP", "LS"]);
+                    socket.raw(format("CAP REQ :%s", capabilities.requires.join(" ")));
+
+                    // TODO(Havvy): If CAP NAK, then fail.
+
+                    capabilities.wants.forEach(function (capability) {
+                        // TODO(Havvy): Check if capability in list. Send only if is.
+                        socket.raw(format("CAP REQ :%s", capability));
+                    });
                 }
 
-                socket.raw(["NICK", socket.network.nickname]);
+                // 4.
                 socket.raw(format("USER %s 8 * :%s", socket.network.username || "user", socket.network.realname));
+
+                // 5.
+
+                // TODO(Havvy): If NICK fails, try next nickname.
+                socket.raw(["NICK", socket.network.nicknames[0]]);
             };
 
             socket.impl.on(emitEvent, emitWhenConnected);
