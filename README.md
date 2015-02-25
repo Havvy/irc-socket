@@ -11,18 +11,18 @@ npm install irc-socket
 ## Instantiation ##
 
 ```javascript
-var IrcSocket = require('simple-irc-socket');
+var IrcSocket = require("irc-socket");
 var myConnection = IrcSocket({
-    server: 'irc.example.net',
+    server: "irc.example.net",
     port: 6667,
     ipv6: false,
     localAddress: undefined,  // See net.Socket documents.
     secure: false,
     rejectUnauthorized: false,
-    nickname: 'aBot',
-    username: 'node',
-    realname: 'Node Simple Socket',
-    password: 'server-password',
+    nicknames: ["aBot"],
+    username: "node",
+    realname: "Node Simple Socket",
+    password: "server-password",
     capab: true
 });
 ```
@@ -31,7 +31,7 @@ The following fields are required:
 
 * server
 * port
-* nickname
+* nicknames
 * realname
 
 If `capab: true` is passed to the configuration object the socket will send `CAP LS` first to initiate a capabilities negotiation.
@@ -121,7 +121,7 @@ look like the following:
 ```
 :irc.uk.mibbit.net 376 Havvy :End of /MOTD command.
 :NyanCat!Mibbit@mib-FFFFFFFF.redacted.com QUIT :Quit: http://www.mibbit.com ajax IRC Client
-ERROR :Closing Link: Havvy[127-00-00-00.redacted.com] (Quit: I got the messages I want.)
+ERROR :Closing Link: Havvy[127-00-00-00.redacted.com] (Quit: Custom quit message.)
 ```
 
 ## Timeouts ##
@@ -129,7 +129,7 @@ ERROR :Closing Link: Havvy[127-00-00-00.redacted.com] (Quit: I got the messages 
 The IRC socket will listen to ping messages and respond to them 
 appropriately, so you do not need to handle this yourself.
 
-Furthermore, if a `PING` hasn't been received from the network within
+Furthermore, if no message has been received from the network within
 thirce the normal time it takes for a `PING` message to arrive, the
 socket will assume the connection was dropped and end the stream.
 
@@ -148,7 +148,7 @@ will otherwise return false.
 
 ### getRealname() ###
 
-This method returns the realname (also called gecos) of the connection.
+This method returns the realname (sometimes called gecos) of the connection.
 
 ### setTimeout(timeout, [callback]) ###
 
@@ -158,7 +158,7 @@ for details.
 
 ## Events ##
 
-The basic-irc-socket is an event emitter. It emits five events.
+The irc-socket is an event emitter. It emits five events.
 
 + ready(): Once the first 001 message has been acknowledged.
 + data(message: String): Every message (including the 001) from the
@@ -169,22 +169,15 @@ sender (inclusive) the the newline (exclusive).
 
 ## Testing ##
 
-Install jasmine-node globally, and then test via npm.
+We install `mocha` as a developer dependency, and run tests with that.
 
 ```
-npm install -g jasmine-node
+npm install
 npm test
 ```
 
-## Legacy ##
+## Upgrading from v.2.0.0 ##
 
-Initialization configuration object can also take `nick` or `user` instead of `nickname` or `username`.
-
-## Known Issues ##
-
-The socket you pass gets ignored if you pass `secure: true` in the network config.
-
-Likewise, the ipv6 and localAddress properties are also ignored with secure connections.
 
 ## See Also
 
