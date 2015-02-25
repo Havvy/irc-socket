@@ -49,6 +49,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
     socket.rejectUnauthorized = config.rejectUnauthorized || false;
     socket.network = pick(config, ["proxy", "password", "capabilities", "username", "realname", "nicknames"]);
     socket.impl = new NetSocket();
+    socket.started = false;
     socket.connected = false;
 
     socket.impl = new NetSocket();
@@ -232,15 +233,16 @@ Socket.isReady = function (data) {
 };
 
 Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors({
-    connect : function () {
-        if (this.isConnected()) {
-            return;
+    connect: function () {
+        if (this.isStarted()) {
+            throw new Error("Cannot restart an irc-socket Socket.");
         }
 
+        this.started = true;
         this.impl.connect(this.port, this.server, this.ipv6 ? 6 : 4, this.localAddress);
     },
 
-    end : function () {
+    end: function () {
         if (!this.isConnected()) {
             return;
         }
@@ -248,7 +250,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         this.impl.end();
     },
 
-    raw : function (message) {
+    raw: function (message) {
         if (!this.connected) {
             return;
         }
@@ -270,11 +272,15 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         this.impl.setTimeout(timeout, callback);
     },
 
-    isConnected : function () {
+    isStarted: function () {
+        return this.started;
+    },
+
+    isConnected: function () {
         return this.connected;
     },
 
-    getRealName : function () {
+    getRealName: function () {
         return this._realname;
     }
 }));
