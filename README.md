@@ -1,37 +1,60 @@
-Simple IRC Socket - handles communication between an IRC server and consumers.
-
-The socket is a thin wrapper around a generic socket, 
+IRC Socket - Socket wrapper to emit irc messages and handle startup.
 
 ## Installation ##
 
 ```
-npm install irc-socket
+npm install irc-socket --save
 ```
 
 ## Instantiation ##
 
 ```javascript
+var NetSocket = require("net").Socket;
 var IrcSocket = require("irc-socket");
-var myConnection = IrcSocket({
-    server: "irc.example.net",
+
+var netSocket = new Socket();
+var ircSocket = IrcSocket({
+    socket: netSocket,
+
     port: 6667,
-    ipv6: false,
-    localAddress: undefined,  // See net.Socket documents.
-    secure: false,
-    rejectUnauthorized: false,
-    nicknames: ["aBot"],
-    username: "node",
-    realname: "Node Simple Socket",
-    password: "server-password",
-    capab: true
+    server: "irc.someircnetwork.net",
+    nicknames: ["freddy", "freddy_"],
+    username: "freddy",
+    realname: "Freddy",
+
+    // For transparent proxies using
+    // the webirc protocol.
+    proxy: {
+        password: "shared-webirc-password",
+        username: "users-username",
+        hostname: "users-hostname",
+        ip: "users-ip"
+    },
+
+    // For anybody wanting IRC3 capabilities.
+    capabilities: {
+        requires: ["multi-prefix", "userhost-in-names"],
+        wants: ["account-notify"]
+    },
+
+    // Passed as the options parameter to socket's
+    // connect method.
+    // Shown here are example options.
+    connectOptions: {
+        localAddress: "a-local-address",
+        localPort: "a-local-port",
+        family: 6, // for ipv6 with net.Socket
+    }
 });
 ```
 
 The following fields are required:
 
+* socket
 * server
 * port
 * nicknames
+* username
 * realname
 
 If `capab: true` is passed to the configuration object the socket will send `CAP LS` first to initiate a capabilities negotiation.
@@ -51,12 +74,26 @@ If you pass `secure: true` in the network configuration object, this parameter i
 
 ## Starting and Closing the Socket ##
 
+You can either use the "ready" event or use the promises returned by the connect method.
+
 ```javascript
 var myConnection = IrcSocket(...);
-mySocket.once('ready', function () {
-    mySocket.end();
+myConnection.once('ready', function () {
+    myConnection.end();
 }
-mySocket.connect();
+myConnection.connect();
+```
+
+```javascript
+var myConnection = IrcSocket(...);
+myConnection.connect().then(function (res) {
+    // res is of type Result<{nickname, capabilities}, FailReason>
+    // If it failed, it already closed itself (or was force killed).
+    // Otherwise, it succeeded, and we want to end it ourself.
+    if (res.isOk()) {
+        myConnection.raw("QUIT");
+    }
+});
 ```
 
 ## Writing to the Server ##
@@ -71,8 +108,11 @@ The message '''must''' follow the
 var details = {...};
 var myConnection = Ircsocket(details);
 
-mySocket.connect();
-mySocket.once('ready', function () {
+mySocket.connect().then(function (res) {
+    if (res.isFail()) {
+        return;
+    }
+
     // Using a string.
     mySocket.raw("JOIN #biscuits");
 }
@@ -141,6 +181,10 @@ You can listen to the `"timeout"` event for when this occurs.
 
 ## Utility Methods ##
 
+### isStarted() ###
+
+This method will return true if the socket was ever started.
+
 ### isConnected() ###
 
 This method will return true when the socket is started, but not ended. It
@@ -178,6 +222,80 @@ npm test
 
 ## Upgrading from v.2.0.0 ##
 
+All of the legacy compatibility has been removed.
+
+A lot of things have changed.
+
+* Changed: "nickname" property is now "nicknames" and takes an array.
+* Changed: You cannot restart an irc-socket Socket.
+* Changed: you must pass in your own Socket under the "socket" property. All socket related configuration has been removed.
+* Changed: Real support for IRC3 capabilities. "capab" property changed to "capabilities", takes an object now.
+* Added: Support for the (Webirc)[http://wiki.mibbit.com/index.php/WebIRC] protocol.
+* Added: `isStarted` method.
+* Added: `connect` method returns a (Bluebird) Promise that either resolves to a Result of Ok([capabilities]) or Fail(FailReason).
+* Removed: Auto-addition of colons in .raw(Array) are gone. Put them in yourself as needed.
+
+There are two things you **must** do when updating. You must change your
+"nickname" property to "nicknames" and make it an array, even if it is just
+an array of a single nickname. You must also create a socket, and pass it in.
+
+```
+var NetSocket = require("net").Socket;
+var IrcSocket = require("irc-socket");
+
+var netSocket = new Socket();
+var ircSocket = IrcSocket({
+    port: 6667,
+    server: "irc.someircnetwork.net",
+    nicknames: ["freddy", "freddy_"],
+    username: "freddy",
+    realname: "Freddy"
+});
+```
+
+Even though `port` and `server` are part of the Socket connect options, you
+must pass them to the IrcSocket options object. For every other connect
+option that was supported, you should instead pass the option in the
+connectOptions object.
+
+```
+var NetSocket = require("net").Socket;
+var IrcSocket = require("irc-socket");
+
+var netSocket = new Socket();
+var ircSocket = IrcSocket({
+    socket: netSocket,
+    port: 6667,
+    server: "irc.someircnetwork.net",
+    nicknames: ["freddy", "freddy_"],
+    username: "freddy",
+    realname: "Freddy",
+    connectOptions: {
+        localAddress: aLocalAddress,
+        family: 6 // was `ipv6` option in old version, is `family` in net.Socket.
+    }
+});
+```
+
+For what was a `secure` socket, you must instead wrap a NetSocket around a
+TLS socket.
+
+```
+var NetSocket = require("net").Socket;
+var TlsSocket = require("tls").TLSSocket;
+var IrcSocket = require("irc-socket");
+
+var netSocket = new Socket();
+var tlsSocket = new TlsSocket(netSocket, {rejectUnauthorized: false});
+var IrcSocket = IrcSocket({
+    socket: tlsSocket,
+    ...
+});
+```
+
+If you were using the `raw` method with an array and relying on it to put in colons
+for you, you must go back and add those colons in yourself. Just grep for `raw([`
+and you should find all of them.
 
 ## See Also
 
