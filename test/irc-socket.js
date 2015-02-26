@@ -1,16 +1,16 @@
-const sinon = require("sinon");
-const assert = require("better-assert");
-// const equal = require("deep-eql");
-const inspect = require("util").inspect;
-const format = require("util").format;
+var sinon = require("sinon");
+var assert = require("better-assert");
+// var equal = require("deep-eql");
+var inspect = require("util").inspect;
+var format = require("util").format;
 
-const debug = false;
-const logfn = debug ? console.log.bind(console) : function () {};
+var debug = false;
+var logfn = debug ? console.log.bind(console) : function () {};
 
-const MockGenericSocket = require("./mock-generic-socket.js");
-const IrcSocket = require("../irc-socket.js");
+var MockSocket = require("./mock-socket.js");
+var IrcSocket = require("../irc-socket.js");
 
-const network = Object.freeze({
+var baseConfig = Object.freeze({
     nicknames : ["testbot"],
     username : "testuser",
     server : "irc.test.net",
@@ -18,57 +18,75 @@ const network = Object.freeze({
     port: 6667
 });
 
-const box = function (value) {
-    return function () {
-        return value;
-    };
-};
-
-describe("Helper Functions", function () {
-    describe("isReady", function () {
-        it("emits true for 001 messages", function () {
-            assert(IrcSocket.isReady(MockGenericSocket.messages["001"]) === true);
-        });
-
-        it("emits false for everything else", function () {
-            assert(IrcSocket.isReady(MockGenericSocket.messages.ping) === false);
-        });
-    });
-});
-
 describe("IRC Sockets", function () {
-    describe("Know when connected,", function () {
+    describe.only("Status", function () {
+        // In this suite, we test the value of 'status' directly.
+        // As an end user of this module, you probably do not need
+        // to use this value, but if you think you do, it is
+        // considered an implementation detail and can change with
+        // any release, including bugfixes.
+
         var socket;
 
         beforeEach(function () {
-            socket = IrcSocket(network, MockGenericSocket);
+            var config = Object.create(baseConfig);
+            config.socket = MockSocket(logfn);
+            socket = new IrcSocket(config);
         });
 
-        it("is not connected at instantiation", function () {
-            socket = IrcSocket(network, MockGenericSocket);
+        it("is 'initialized' at instantiation", function () {
+            logfn("Status:", socket.status);
             assert(socket.isConnected() === false);
+            assert(socket.isStarted() === false);
+            assert(socket.isReady() === false);
+            assert(socket.status === "initialized")
         });
 
-        it("connected once connected.", function () {
+        it("is 'connecting' once calling socket.connect but before base socket is connected", function () {
             socket.connect();
+            logfn("Status:", socket.status);
             assert(socket.isConnected() === true);
+            assert(socket.isStarted() === true);
+            assert(socket.isReady() === false);
+            assert(socket.status === "connecting");
+            socket.end();
         });
 
-        it("not connected once ended", function () {
+        it("is 'starting' once connected but before the 001 message", function () {
+            socket.connect();
+            socket.impl.acceptConnect();
+            logfn("Status:", socket.status);
+            assert(socket.isConnected() === true);
+            assert(socket.isStarted() === true);
+            assert(socket.isReady() === false);
+            assert(socket.status === "starting");
+        });
+
+        it("is 'ready' once 001 message is sent", function () {
+            socket.connect();
+            socket.impl.acceptConnect();
+            socket.impl.acceptData(MockSocket.messages.rpl_welcome);
+            logfn("Status:", socket.status);
+            assert(socket.isConnected() === true);
+            assert(socket.isStarted() === true);
+            assert(socket.isReady() === true);
+            assert(socket.status === "running");
+        });
+
+        it("is 'closed' once ended", function () {
             socket.connect();
             socket.end();
             assert(socket.isConnected() === false);
-        });
-
-        afterEach(function () {
-            socket.end();
+            assert(socket.isStarted() === true);
+            assert(socket.isReady() === false);
+            assert(socket.status === "closed");
         });
     });
 
     describe("Startup procedures", function () {
         it("Sending NICK and USER to the server on connection", function () {
-            const genericsocket = MockGenericSocket();
-            const socket = IrcSocket(network, box(genericsocket));
+            var genericsocket = MockSocket();
+            var socket = IrcSocket(network, box(genericsocket));
             socket.connect();
             socket.end();
             assert(genericsocket.write.calledWith("NICK testbot\r\n", "utf-8"));
@@ -78,7 +96,7 @@ describe("IRC Sockets", function () {
         });
 
         it("Sends Ready Events on 001", function (done) {
-            const socket = IrcSocket(network, MockGenericSocket);
+            var socket = IrcSocket(network, MockSocket);
 
             socket.on("ready", function checkForReady () {
                 socket.end();
@@ -93,7 +111,7 @@ describe("IRC Sockets", function () {
         var genericsocket, socket;
 
         beforeEach(function () {
-            genericsocket = MockGenericSocket();
+            genericsocket = MockSocket();
             socket = IrcSocket(network, box(genericsocket));
         });
 
@@ -115,7 +133,7 @@ describe("IRC Sockets", function () {
         var genericsocket, socket, clock;
 
         beforeEach(function (done) {
-            genericsocket = MockGenericSocket();
+            genericsocket = MockSocket();
             socket = IrcSocket(network, box(genericsocket));
             clock = sinon.useFakeTimers();
             socket.on("ready", function () {
@@ -143,7 +161,7 @@ describe("IRC Sockets", function () {
             logfn("Advancing time by 1000");
             clock.tick(1000);
             logfn("Emitting ping.");
-            genericsocket.emit("data", MockGenericSocket.messages.ping);
+            genericsocket.emit("data", MockSocket.messages.ping);
 
             // setImmediate to let other things happens.
             setImmediate(function () {
@@ -165,7 +183,7 @@ describe("IRC Sockets", function () {
             });
 
             clock.tick(1000);
-            genericsocket.emit("data", MockGenericSocket.messages.ping);
+            genericsocket.emit("data", MockSocket.messages.ping);
 
             setImmediate(function () {
                 clock.tick(5000);
@@ -188,7 +206,7 @@ describe("IRC Sockets", function () {
 
                 logfn("Ticking 1000 time units");
                 clock.tick(1000);
-                genericsocket.emit("data", MockGenericSocket.messages.ping);
+                genericsocket.emit("data", MockSocket.messages.ping);
                 pingsLeft -= 1;
                 logfn("pingsLeft is now " + pingsLeft);
 
@@ -202,7 +220,7 @@ describe("IRC Sockets", function () {
         var genericsocket, socket, spy;
 
         beforeEach(function (done) {
-            genericsocket = MockGenericSocket();
+            genericsocket = MockSocket();
             socket = IrcSocket(network, box(genericsocket));
             spy = sinon.spy();
             socket.on("data", spy);
@@ -239,8 +257,8 @@ describe("IRC Sockets", function () {
                 }
             });
 
-            genericsocket.emit("data", MockGenericSocket.messages.multi1);
-            genericsocket.emit("data", MockGenericSocket.messages.multi2);
+            genericsocket.emit("data", MockSocket.messages.multi1);
+            genericsocket.emit("data", MockSocket.messages.multi2);
         });
     });
 });

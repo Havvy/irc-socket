@@ -9,11 +9,13 @@
  * Send messages to server with .raw(String) method.
  */
 
-var net = require("net");
-var TlsSocket = require("tls").TLSSocket;
 var EventEmitter = require("events").EventEmitter;
 var inspect = require("util").inspect;
 var format = require("util").format;
+var Promise = require("bluebird");
+var rresult = require("r-result");
+var Ok = rresult.Ok;
+var Fail = rresult.Fail;
 
 var intoPropertyDescriptors = function (object) {
     Object.keys(object).forEach(function (key) {
@@ -37,25 +39,39 @@ var pick = function (object, keys) {
     return newObject;
 };
 
-var Socket = module.exports = function Socket (config, NetSocket) {
-    NetSocket = NetSocket || net.Socket;
+var failures = {
+    killed: {},
+    nicknamesUnavailable: {},
+    badProxyConfiguration: {},
+    missingRequiredCapabilities: {}
+};
 
+var Socket = module.exports = function Socket (config) {
     var socket = Object.create(Socket.prototype);
-    socket.port = config.port || 6667;
-    socket.server = config.server;
-    socket.ipv6 = config.ipv6 || false;
-    socket.localAddress = config.localAddress || undefined;
-    socket.tls = config.tls || false;
-    socket.rejectUnauthorized = config.rejectUnauthorized || false;
-    socket.network = pick(config, ["proxy", "password", "capabilities", "username", "realname", "nicknames"]);
-    socket.impl = new NetSocket();
-    socket.started = false;
-    socket.connected = false;
 
-    socket.impl = new NetSocket();
-    if (config.tls) {
-        socket.impl = new TlsSocket(socket.impl, { rejectUnauthorized: false });
+    // Internal implementation values.
+    socket.impl = config.socket;
+    // status := ["initialized", "connecting", "starting", "running", "closed"]
+    socket.status = "initialized";
+    socket.startupPromise = new Promise(function (resolve, reject) {
+        socket.resolvePromise = resolve;
+        socket.rejectPromise = reject;
+    });
+
+    // IRC Connection Handshake Options
+    socket.proxy = config.proxy;
+    socket.password = config.password;
+    socket.capabilities = config.capabilities;
+    socket.username = config.username;
+    socket.realname = config.realname;
+    socket.nicknames = config.nicknames;
+
+    // Socket Connection Options
+    if (typeof config.connectOptions !== "object") {
+        config.connectOptions = {};
     }
+    config.connectOptions.port = config.port || 6667;
+    config.connectOptions.server = config.server;
 
     socket._setupEvents = function () {
         var onData = function () {
@@ -120,82 +136,172 @@ var Socket = module.exports = function Socket (config, NetSocket) {
             return onLine;
         }();
 
-        socket.impl.on("data", function emitWhenReady (data) {
-            if (Socket.isReady(data)) {
-                socket.impl.removeListener("data", emitWhenReady);
-                socket.emit("ready");
-            }
-        });
-
         void function connectEvent () {
             var emitEvent = (socket.secure) ? "secureConnect" : "connect";
             var emitWhenConnected = function () {
                 socket.localPort = socket.impl.localPort;
-                socket.connected = true;
+                socket.status = "starting";
                 socket.emit("connect");
 
-                // Promises?
-                //-1. Send WEBIRC password user hostname ip
-                // 0. Send PASS.
-                // 1. CAP LS
-                // 2. CAP REQ required
-                // 2a. If CAP REQ fails for required capabilities, QUIT; return;
-                // 3. CAP REQ wants, one at a time.
-                // 3a. Store true if succeeded.
-                // 3b. Store false if failed.
+                // 1. Send WEBIRC if proxy set.
+                // 2. Send PASS if set.
+                // 3. Do capabilities negotiations if set.
                 // 4. Send USER
-                // 5. Send NICK
-                // 5a. If error event, send next NICK
-                // 5b. If 001, unsubscribe error handlers.
+                // 5. Send NICK until one is accepted.
 
-                // 0. Send WEBIRC
-                if (typeof socket.network.proxy === "object") {
-                    var proxy = socket.network.proxy;
+                // From here to the end of connectionHandler is ugly.
+                // Should probably refactor to use Promises at some point.
+                if (socket.capabilities) {
+                    var serverCapabilties;
+                    var acknowledgedCapabilities = socket.capabilities.slice();
+
+                    var sentRequests = 0;
+                    var respondedRequests = 0;
+                    var allRequestsSent = false;
+                }
+
+                var nickname;
+
+                var sendUser = function () {
+                    socket.raw(format("USER %s 8 * :%s", socket.username, socket.realname));
+                };
+
+                var sendNick = function  () {
+                    if (socket.nicknames.length === 0) {
+                        socket.raw("QUIT");
+                        socket.resolvePromise(Fail(failures.nicknamesUnavailable));
+                    }
+
+                    nickname = socket.nicknames[0];
+                    socket.nicknames.shift();
+
+                    socket.raw(["NICK", nickname]);
+                };
+
+                var startupHandler = function startupHandler (line) {
+                    // If WEBIRC fails.
+                    if (line.slice(0, 19) === "ERROR") {
+                        socket.resolvePromise(Fail(failures.badProxyConfiguration));
+                        return;
+                    }
+
+                    var parts = line.split(" ");
+                    var numeric = parts[1];
+
+                    if (numeric === "CAP") {
+                        if (parts[3] === "LS") {
+                            serverCapabilties = parts.slice(4);
+                            serverCapabilties[0] = serverCapabilties[0].slice(1);
+
+                            if (capabilities.requires && capabilities.requires.every(function (capability) {
+                                return includes(serverCapabilties, capability);
+                            })) {
+                                socket.raw(format("CAP REQ :%s", capabilities.requires.join(" ")));
+                                sentRequests += 1;
+                            } else {
+                                socket.raw("QUIT");
+                                socket.resolvePromise(Fail(failures.missingRequiredCapabilities));
+                                return;
+                            }
+
+                            if (capabilities.wants) {
+                                capabilities.wants
+                                .filter(function (capability) {
+                                    return includes(serverCapabilities, capability);
+                                })
+                                .forEach(function (capability) {
+                                    socket.raw(format("CAP REQ :%s", capability));
+                                    sentRequests += 1;
+                                });
+
+                                allRequestsSent = true;
+                            }
+
+                            return;
+                        } else if (parts[3] === "NAK") {
+                            respondedRequests += 1;
+                            var capability = parts[4].slice(1);
+
+                            if (includes(capabilities.requires, capability)) {
+                                socket.raw("QUIT");
+                                socket.resolvePromise(Fail(failures.missingRequiredCapabilities));
+                                return;
+                            }
+                        } else if (parts[3] === "ACK") {
+                            respondedRequests += 1;
+
+                            var capability = parts[4].slice(1);
+
+                            if (includes(capabilities.wants, capability)) {
+                                acknowledgedCapabilities.push(capability);
+                            }
+                        }
+
+                        if (allRequestsSent && sentRequests === respondedRequests) {
+                            // 4. Send USER
+                            sendUser();
+
+                            // 5. Send NICK
+                            sendNick();
+                        }
+                    } else if (numeric === "001") {
+                        socket.status = "running";
+                        socket.removeListener("data", startupHandler);
+                        socket.emit("ready");
+                        socket.resolvePromise({
+                            capabilities: acknowledgedCapabilities,
+                            nickname: nickname
+                        });
+                    } else if (includes(["431", "432", "433", "436", "437", "484"], numeric)) {
+                        sendNick();
+                    } else if (numeric === "PING") {
+                        /* no-op */
+                    } else {
+                        throw new Error("Unknown message type sent during connection!");
+                    }
+                };
+
+                socket.on("data", startupHandler);
+
+                // 1. Send WEBIRC
+                if (typeof socket.proxy === "object") {
+                    var proxy = socket.proxy;
+
+                    socket.on("data", webircHandler);
                     socket.raw(["WEBIRC", proxy.password, proxy.username, proxy.hostname, proxy.ip]);
                 }
 
-                // TODO(Havvy): If WEBIRC fails, then fail.
-
-                // 1. Send PASS
-                if (typeof socket.network.password === "string") {
-                    socket.raw(["PASS", socket.network.password]);
+                // 2. Send PASS
+                // Will force kill connection if wrong.
+                if (typeof socket.password === "string") {
+                    socket.raw(["PASS", socket.password]);
                 }
 
-                // TODO(Havvy): If PASS fails, then fail.
+                // 3. Send CAP LS
+                if (typeof socket.capabilities === "object") {
+                    socket.raw("CAP LS");
+                } else {
+                    // 4. Send USER
+                    sendUser();
 
-                // 2-3.
-                if (socket.network.capabilities) {
-                    var capabilities = socket.network.capabilities;
-                    socket.raw(["CAP", "LS"]);
-                    socket.raw(format("CAP REQ :%s", capabilities.requires.join(" ")));
-
-                    // TODO(Havvy): If CAP NAK, then fail.
-
-                    capabilities.wants.forEach(function (capability) {
-                        // TODO(Havvy): Check if capability in list. Send only if is.
-                        socket.raw(format("CAP REQ :%s", capability));
-                    });
+                    // 5. Send NICK.
+                    sendNick();
                 }
-
-                // 4.
-                socket.raw(format("USER %s 8 * :%s", socket.network.username || "user", socket.network.realname));
-
-                // 5.
-
-                // TODO(Havvy): If NICK fails, try next nickname.
-                socket.raw(["NICK", socket.network.nicknames[0]]);
             };
 
             socket.impl.on(emitEvent, emitWhenConnected);
         }();
 
         socket.impl.on("error", function (error) {
-            socket.connected = false;
+            socket.status = "closed";
             socket.emit("error", error);
         });
 
         socket.impl.on("close", function () {
-            socket.connected = false;
+            if (socket.status === "starting") {
+                socket.resolvePromise(Fail(failures.killed));
+            }
+            socket.status = "closed";
             socket.emit("close");
         });
 
@@ -225,12 +331,7 @@ var Socket = module.exports = function Socket (config, NetSocket) {
     return socket;
 };
 
-Socket.isReady = function (data) {
-    // We are "ready" when we get a 001 message.
-    return data.split("\r\n")
-    .filter(function (line) { return line !== ""; })
-    .some(function (line) { return line.split(" ")[1] === "001"; });
-};
+Socket.connectFailures = failures;
 
 Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors({
     connect: function () {
@@ -238,7 +339,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
             throw new Error("Cannot restart an irc-socket Socket.");
         }
 
-        this.started = true;
+        this.status = "connecting";
         this.impl.connect(this.port, this.server, this.ipv6 ? 6 : 4, this.localAddress);
     },
 
@@ -251,14 +352,12 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
     },
 
     raw: function (message) {
-        if (!this.connected) {
+        if (!this.isConnected()) {
             return;
         }
 
         if (Array.isArray(message)) {
-            message = message.map(function (m) {
-                return (m.indexOf(" ") !== -1) ? ":" + m : m;
-            }).join(" ");
+            message = message.join(" ");
         }
 
         if (message.indexOf("\n") !== -1) {
@@ -273,11 +372,15 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
     },
 
     isStarted: function () {
-        return this.started;
+        return this.status !== "initialized";
     },
 
     isConnected: function () {
-        return this.connected;
+        return includes(["connecting", "starting", "running"], this.status);
+    },
+
+    isReady: function () {
+        return this.status === "running";
     },
 
     getRealName: function () {

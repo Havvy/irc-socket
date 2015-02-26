@@ -1,39 +1,62 @@
-const EEProto = require('events').EventEmitter.prototype;
-const sinon = require('sinon');
+var EEProto = require("events").EventEmitter.prototype;
+var sinon = require("sinon");
+var inspect = require("util").inspect;
+var format = require("util").format;
+var assert = require("assert");
 
-const create = function (prototype, properties) {
-  if (typeof properties !== 'object') {
-    return Object.create(prototype);
-  }
+var intoPropertyDescriptors = function (object) {
+    Object.keys(object).forEach(function (key) {
+        object[key] = { value: object[key] };
+    });
 
-  const props = {};
-  Object.keys(properties).forEach(function (key) {
-    props[key] = { value: properties[key] };
-  });
-  return Object.create(prototype, props);
+    return object;
 };
 
-const MockGenericSocket = module.exports = function MockGenericSocket () {
-  return create(EEProto, {
-    connect : sinon.spy(function () {
-      this.emit("connect");
-      setTimeout((function () {
-        this.emit("data", MockGenericSocket.messages.ping);
-        this.emit("data", MockGenericSocket.messages['001']);
-        this.isConnected = true;
-      }).bind(this), 0);
-    }),
+var MockSocket = module.exports = function MockSocket (baselogfn) {
+    var logfn = function () {
+        var args = Array.prototype.slice.call(arguments);
+        args.unshift("MockSocket");
+        baselogfn.apply(null, args);
+    };
 
-    end :  function () { this.emit('close'); },
-    write : sinon.spy(),
-    setNoDelay : sinon.spy(),
-    setEncoding : sinon.spy()
-  });
+    var connecting = false;
+
+    return Object.create(EEProto, intoPropertyDescriptors({
+        connect : sinon.spy(function () {
+            connecting = true;
+        }),
+
+        write: sinon.spy(function (out) {
+            logfn("writing", format("\"%s\"", out.replace(/\r/g, "\\r").replace(/\n/g, "\\n")));
+        }),
+
+        end:  function () { this.emit("close"); },
+        setNoDelay: sinon.spy(),
+        setEncoding: sinon.spy(),
+
+        // Spying on Event Emitter methods.
+        emit: function (message, data) {
+            var datastr = data === undefined ? "no-data" : inspect(data);
+            logfn("emitting", format("\"%s\"", message), datastr);
+            EEProto.emit.apply(this, arguments);
+        },
+
+        // Only to be called by test code.
+        acceptConnect: function () {
+            assert(connecting === true);
+            connecting = false;
+            this.emit("connect");
+        },
+
+        acceptData: function (data) {
+            this.emit("data", data);
+        }
+    }));
 };
 
-MockGenericSocket.messages = {
-  "001" : ":irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost\r\n",
-  ping : 'PING :PINGMESSAGE\r\n',
+MockSocket.messages = {
+  rpl_welcome : ":irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost\r\n",
+  ping : "PING :PINGMESSAGE\r\n",
   multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re",
   multi2: "ally long message!\r\n"
 };
