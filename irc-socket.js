@@ -340,7 +340,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         }
 
         this.status = "connecting";
-        this.impl.connect(this.port, this.server, this.ipv6 ? 6 : 4, this.localAddress);
+        this.impl.connect(this.connectOptions);
     },
 
     end: function () {
