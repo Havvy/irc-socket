@@ -224,20 +224,40 @@ npm test
 
 All of the legacy compatibility has been removed.
 
-A lot of things have changed.
+A lot of things have changed/been added.
 
 * Changed: "nickname" property is now "nicknames" and takes an array.
 * Changed: You cannot restart an irc-socket Socket.
 * Changed: you must pass in your own Socket under the "socket" property. All socket related configuration has been removed.
 * Changed: Real support for IRC3 capabilities. "capab" property changed to "capabilities", takes an object now.
 * Added: Support for the (Webirc)[http://wiki.mibbit.com/index.php/WebIRC] protocol.
-* Added: `isStarted` method.
+* Added: `isStarted`, `isReady` methods. for more fine grained status tracking.
 * Added: `connect` method returns a (Bluebird) Promise that either resolves to a Result of Ok([capabilities]) or Fail(FailReason).
 * Removed: Auto-addition of colons in .raw(Array) are gone. Put them in yourself as needed.
+* Added `debug` property which takes a function like `console.log`.
 
-There are two things you **must** do when updating. You must change your
-"nickname" property to "nicknames" and make it an array, even if it is just
-an array of a single nickname. You must also create a socket, and pass it in.
+### Configuration
+
+You *must* rename the `nickname` property to `nicknames` and change it to an array.
+This was done so that we can have multiple nicknames. Should all of them be not
+accepted, the socket will close itself.
+
+If you were using the (practically useless) `capab` property, you probably want to
+use the `capabilities` property which takes an object now.
+
+If you were using `ipv6` you now want to pass `family: 6` to the `connectOptions`
+property object now. Likewise, other Socket connect options should go there.
+
+If you were using `secure`, you now want to create a `net.Socket` and then upgrade
+it to a `tls.Socket` and finally upgrade that to an `irc-socket`. See the next
+section for details.
+
+### Initialization
+
+We now upgrade your socket into an irc-socket instead of instatiating it ourself.
+
+This means that you need to instantiate the socket you want. Once you upgrade the
+socket, you give up ownership of it, but gain ownership of the upgraded socket.
 
 ```
 var NetSocket = require("net").Socket;
@@ -293,13 +313,24 @@ var IrcSocket = IrcSocket({
 });
 ```
 
+### raw([String]) breaking change
+
 If you were using the `raw` method with an array and relying on it to put in colons
 for you, you must go back and add those colons in yourself. Just grep for `raw([`
 and you should find all of them.
 
+### connect() returns a Promise
+
+Instead of listening to the `ready` event and doing your own startup handling there,
+the `connect` method return a Promise. The promise resolves to a
+[r-result](https://npmjs.org/package/r-result) result (mostly equivalent to Rust's
+Result type) where it is either Ok({capabilities, nickname}) or Fail(ConnectFailureReason).
+The connect failure reasons are located at IrcSocket.connectFailures.
+
 ## See Also
 
-The [irc-message](https://github.com/expr/irc-message) module will quickly parse the strings you pass into objects.
+The [irc-message](https://github.com/expr/irc-message) package will quickly parse the strings you pass into objects.
+The new version also merges with `irc-message-stream` to provide a stream.
 
 For a full IRC Bot framework, take a look at [Tennu](https://tennu.github.io).
 
