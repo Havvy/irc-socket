@@ -4,7 +4,7 @@ var assert = require("better-assert");
 var uinspect = require("util").inspect;
 var format = require("util").format;
 
-var debug = false;
+var debug = true;
 var logfn = debug ? console.log.bind(console) : function () {};
 
 var MockSocket = require("./mock-socket.js");
@@ -122,7 +122,7 @@ describe("IRC Sockets", function () {
             var promise = socket.connect()
             .then(function (res) {
                 logfn(inspect(res));
-                assert(res.isOk());
+                assert(res.ok().nickname === "testbot");
             }, assert);
 
             socket.impl.acceptConnect();
@@ -137,15 +137,26 @@ describe("IRC Sockets", function () {
             return promise;
         });
 
-        it.skip("Sends Ready Events on 001", function (done) {
-            var socket = IrcSocket(network, MockSocket);
+        it("Minimal Config: USER & Single nickname w/success w/ready event", function (done) {
+            var config = merge(baseConfig, {socket: MockSocket(logfn)});
+            var socket = IrcSocket(config);
 
-            socket.on("ready", function checkForReady () {
-                socket.end();
+            socket.on("ready", function (res) {
+                logfn(inspect(res));
+                assert(res.nickname === "testbot");
                 done();
             });
+            
+            var promise = socket.connect();
 
-            socket.connect();
+            socket.impl.acceptConnect();
+
+            logfn(inspect(socket.impl.write.getCall(0).args));
+            logfn((socket.impl.write.getCall(1).args));
+            assert(socket.impl.write.calledWith("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.calledWith("NICK testbot\r\n", "utf-8"));
+
+            socket.impl.acceptData(messages.rpl_welcome);
         });
     });
 
