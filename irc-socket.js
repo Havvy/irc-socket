@@ -64,7 +64,7 @@ var Socket = module.exports = function Socket (config) {
     socket.capabilities = config.capabilities;
     socket.username = config.username;
     socket.realname = config.realname;
-    socket.nicknames = config.nicknames;
+    socket.nicknames = config.nicknames.slice();
 
     // Socket Connection Options
     if (typeof config.connectOptions !== "object") {
@@ -247,11 +247,14 @@ var Socket = module.exports = function Socket (config) {
                     } else if (numeric === "001") {
                         socket.status = "running";
                         socket.removeListener("data", startupHandler);
-                        socket.emit("ready");
-                        socket.resolvePromise({
+
+                        var data = {
                             capabilities: acknowledgedCapabilities,
                             nickname: nickname
-                        });
+                        };
+
+                        socket.emit("ready", data);
+                        socket.resolvePromise(Ok(data));
                     } else if (includes(["431", "432", "433", "436", "437", "484"], numeric)) {
                         sendNick();
                     } else if (numeric === "PING") {
@@ -341,6 +344,8 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
 
         this.status = "connecting";
         this.impl.connect(this.connectOptions);
+
+        return this.startupPromise;
     },
 
     end: function () {

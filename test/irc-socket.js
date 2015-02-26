@@ -1,7 +1,7 @@
 var sinon = require("sinon");
 var assert = require("better-assert");
 // var equal = require("deep-eql");
-var inspect = require("util").inspect;
+var uinspect = require("util").inspect;
 var format = require("util").format;
 
 var debug = false;
@@ -10,16 +10,46 @@ var logfn = debug ? console.log.bind(console) : function () {};
 var MockSocket = require("./mock-socket.js");
 var IrcSocket = require("../irc-socket.js");
 
-var baseConfig = Object.freeze({
-    nicknames : ["testbot"],
-    username : "testuser",
-    server : "irc.test.net",
+// Merge two objects to create a new object,
+// taking precedence from the second object.
+// Ignores prototypes.
+var merge = function (low, high) {
+    var res = {};
+
+    Object.keys(high).forEach(function (key) {
+        res[key] = high[key];
+    });
+
+    Object.keys(low).forEach(function (key) {
+        if (!Object.prototype.hasOwnProperty.call(res, key)) {
+            res[key] = low[key];
+        }
+    });
+
+    return res;
+};
+
+var inspect = function (obj) {
+    return uinspect(obj).replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+};
+
+var baseConfig = {
+    nicknames: ["testbot"],
+    username: "testuser",
+    server: "irc.test.net",
     realname: "realbot",
     port: 6667
-});
+};
+
+var messages = {
+    rpl_welcome: ":irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost\r\n",
+    ping: "PING :PINGMESSAGE\r\n",
+    multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re",
+    multi2: "ally long message!\r\n"
+};
 
 describe("IRC Sockets", function () {
-    describe.only("Status", function () {
+    describe("Status", function () {
         // In this suite, we test the value of 'status' directly.
         // As an end user of this module, you probably do not need
         // to use this value, but if you think you do, it is
@@ -65,7 +95,7 @@ describe("IRC Sockets", function () {
         it("is 'ready' once 001 message is sent", function () {
             socket.connect();
             socket.impl.acceptConnect();
-            socket.impl.acceptData(MockSocket.messages.rpl_welcome);
+            socket.impl.acceptData(messages.rpl_welcome);
             logfn("Status:", socket.status);
             assert(socket.isConnected() === true);
             assert(socket.isStarted() === true);
@@ -76,6 +106,7 @@ describe("IRC Sockets", function () {
         it("is 'closed' once ended", function () {
             socket.connect();
             socket.end();
+            logfn("Status:", socket.status);
             assert(socket.isConnected() === false);
             assert(socket.isStarted() === true);
             assert(socket.isReady() === false);
@@ -83,19 +114,30 @@ describe("IRC Sockets", function () {
         });
     });
 
-    describe("Startup procedures", function () {
-        it("Sending NICK and USER to the server on connection", function () {
-            var genericsocket = MockSocket();
-            var socket = IrcSocket(network, box(genericsocket));
-            socket.connect();
-            socket.end();
-            assert(genericsocket.write.calledWith("NICK testbot\r\n", "utf-8"));
+    describe("Startup Procedure", function () {
+        it("Minimal Config: USER & Single nickname w/success", function () {
+            var config = merge(baseConfig, {socket: MockSocket(logfn)});
+            var socket = IrcSocket(config);
+            
+            var promise = socket.connect()
+            .then(function (res) {
+                logfn(inspect(res));
+                assert(res.isOk());
+            }, assert);
 
-            logfn(format("write(\"%s\")", genericsocket.write.secondCall.args[0]));
-            assert(genericsocket.write.calledWith("USER testuser 8 * :realbot\r\n", "utf-8"));
+            socket.impl.acceptConnect();
+
+            logfn(inspect(socket.impl.write.getCall(0).args));
+            logfn((socket.impl.write.getCall(1).args));
+            assert(socket.impl.write.calledWith("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.calledWith("NICK testbot\r\n", "utf-8"));
+
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
         });
 
-        it("Sends Ready Events on 001", function (done) {
+        it.skip("Sends Ready Events on 001", function (done) {
             var socket = IrcSocket(network, MockSocket);
 
             socket.on("ready", function checkForReady () {
@@ -107,7 +149,7 @@ describe("IRC Sockets", function () {
         });
     });
 
-    describe("handles pings", function () {
+    describe.skip("handles pings", function () {
         var genericsocket, socket;
 
         beforeEach(function () {
@@ -129,7 +171,7 @@ describe("IRC Sockets", function () {
         });
     });
 
-    describe("timeouts", function () {
+    describe.skip("timeouts", function () {
         var genericsocket, socket, clock;
 
         beforeEach(function (done) {
@@ -216,7 +258,7 @@ describe("IRC Sockets", function () {
         });
     });
 
-    describe("Emitted data", function () {
+    describe.skip("Emitted data", function () {
         var genericsocket, socket, spy;
 
         beforeEach(function (done) {
