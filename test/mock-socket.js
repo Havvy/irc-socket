@@ -12,6 +12,11 @@ var intoPropertyDescriptors = function (object) {
     return object;
 };
 
+// pad to 7 characters (e.g. length("timeout"))
+var pad = function (str) {
+    return ("       " + str).slice(-9);
+};
+
 var MockSocket = module.exports = function MockSocket (baselogfn) {
     var logfn = function () {
         var args = Array.prototype.slice.call(arguments);
@@ -27,7 +32,8 @@ var MockSocket = module.exports = function MockSocket (baselogfn) {
         }),
 
         write: sinon.spy(function (out) {
-            logfn("writing", format("\"%s\"", out.replace(/\r/g, "\\r").replace(/\n/g, "\\n")));
+            out = out.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+            logfn(format("[WRITE] %s", out));
         }),
 
         end:  function () { this.emit("close"); },
@@ -37,8 +43,13 @@ var MockSocket = module.exports = function MockSocket (baselogfn) {
         // Spying on Event Emitter methods.
         emit: function (message, data) {
             var datastr = data === undefined ? "no-data" : inspect(data);
-            logfn("emitting", format("\"%s\"", message), datastr);
+            logfn(format(" [EMIT] %s %s", pad(message), datastr));
             EEProto.emit.apply(this, arguments);
+        },
+
+        removeListener: function (message, fn) {
+            logfn(format("  [OFF] %s %s", pad(message), fn.name));
+            EEProto.removeListener.apply(this, arguments);
         },
 
         // Only to be called by test code.

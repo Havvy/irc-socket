@@ -43,6 +43,8 @@ var baseConfig = {
 
 var messages = {
     rpl_welcome: ":irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost\r\n",
+    rpl_nicknameinuse_testbot: ":irc.test.net 433 * testbot :Nickname is already in use.\r\n",
+    rpl_nicknameinuse_testbot_: ":irc.test.net 433 * testbot_ :Nickname is already in use.\r\n",
     ping: "PING :PINGMESSAGE\r\n",
     multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re",
     multi2: "ally long message!\r\n"
@@ -129,8 +131,8 @@ describe("IRC Sockets", function () {
 
             logfn(inspect(socket.impl.write.getCall(0).args));
             logfn((socket.impl.write.getCall(1).args));
-            assert(socket.impl.write.calledWith("USER testuser 8 * :realbot\r\n", "utf-8"));
-            assert(socket.impl.write.calledWith("NICK testbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(0).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("NICK testbot\r\n", "utf-8"));
 
             socket.impl.acceptData(messages.rpl_welcome);
 
@@ -150,13 +152,77 @@ describe("IRC Sockets", function () {
             var promise = socket.connect();
 
             socket.impl.acceptConnect();
-
-            logfn(inspect(socket.impl.write.getCall(0).args));
-            logfn((socket.impl.write.getCall(1).args));
-            assert(socket.impl.write.calledWith("USER testuser 8 * :realbot\r\n", "utf-8"));
-            assert(socket.impl.write.calledWith("NICK testbot\r\n", "utf-8"));
-
+            assert(socket.impl.write.getCall(0).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("NICK testbot\r\n", "utf-8"));
             socket.impl.acceptData(messages.rpl_welcome);
+        });
+
+        it("USER & Single nickname w/failure", function () {
+            var config = merge(baseConfig, {socket: MockSocket(logfn)});
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isFail());
+                assert(res.fail() === IrcSocket.connectFailures.nicknamesUnavailable);
+                assert(socket.impl.write.getCall(2).calledWithExactly("QUIT\r\n", "utf-8"));
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_nicknameinuse_testbot);
+
+            return promise;
+        });
+
+        it("USER & Multiple nicknames w/second success", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                nicknames: ["testbot", "testbot_"]
+            });
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.ok().nickname = "testbot_");
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_nicknameinuse_testbot);
+            assert(socket.impl.write.getCall(2).calledWithExactly("NICK testbot_\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
+        });
+
+        it("USER & Multiple nicknames w/failure", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                nicknames: ["testbot", "testbot_"]
+            });
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isFail());
+                assert(res.fail() === IrcSocket.connectFailures.nicknamesUnavailable);
+                assert(socket.impl.write.getCall(3).calledWithExactly("QUIT\r\n", "utf-8"));
+
+                // Don't send NICK after running out.
+                assert(socket.impl.write.getCall(4) === null);
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_nicknameinuse_testbot);
+            assert(socket.impl.write.getCall(2).calledWithExactly("NICK testbot_\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_nicknameinuse_testbot_);
+
+            return promise;
         });
     });
 
