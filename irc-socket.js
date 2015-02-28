@@ -255,9 +255,10 @@ var Socket = module.exports = function Socket (config) {
             };
 
             // Subscribe & Unsubscribe
+            // TODO(Havvy): Return /this/ Promise, 
             socket.on("data", startupHandler);
             socket.startupPromise.then(function (res) {
-                socket.impl.removeListener("data", startupHandler);
+                socket.removeListener("data", startupHandler);
             });
 
             // 1. Send WEBIRC
@@ -379,4 +380,13 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
     getRealName: function () {
         return this._realname;
     }
+
+    /*
+    // For debugging tests.
+    
+    removeListener: function (message, fn) {
+        console.log(format(" IrcSocket   [OFF] %s %s", message, fn.name));
+        EventEmitter.prototype.removeListener.apply(this, arguments);
+    }
+    */
 }));

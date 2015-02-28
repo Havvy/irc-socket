@@ -46,6 +46,7 @@ var messages = {
     rpl_nicknameinuse_testbot: ":irc.test.net 433 * testbot :Nickname is already in use.\r\n",
     rpl_nicknameinuse_testbot_: ":irc.test.net 433 * testbot_ :Nickname is already in use.\r\n",
     ping: "PING :PINGMESSAGE\r\n",
+    single: "nick!user@host.net PRIVMSG testbot :Short message.\r\n",
     multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re",
     multi2: "ally long message!\r\n",
     webirc_error: "ERROR :Closing Link: [127.0.0.1] (CGI:IRC -- No access)\r\n"
@@ -392,36 +393,38 @@ describe("IRC Sockets", function () {
         });
     });
 
-    describe.skip("Emitted data", function () {
-        var genericsocket, socket, spy;
+    describe("'data' events", function () {
+        var socket;
 
-        beforeEach(function (done) {
-            genericsocket = MockSocket();
-            socket = IrcSocket(network, box(genericsocket));
-            spy = sinon.spy();
-            socket.on("data", spy);
-            socket.connect();
-
-            socket.on("ready", function () {
-                done();
-            });
+        beforeEach(function () {
+            var config = merge(baseConfig, {socket: MockSocket(logfn)});
+            socket = IrcSocket(config);
+            
+            var promise = socket.connect();
+            socket.impl.acceptConnect();
+            socket.impl.acceptData(messages.rpl_welcome);
+            return promise;
         });
 
         afterEach(function () {
             socket.end();
         });
 
-        it("emits each IRC line in a data event", function (done) {
-            // The first message after the ready event is the 001 message.
-
-            socket.on("data", function (msg) {
-                assert(spy.calledWith(":irc.test.net 001 testbot :Welcome to the Test IRC Network testbot!testuser@localhost"));
-                done();
+        it("is a single IRC line", function (done) {
+            console.log("beforeEach ends?");
+            socket.on("data", function (line) {
+                if (line === messages.single.slice(0, -2)) {
+                    done()
+                } else {
+                    done(line);
+                }
             });
+
+            socket.impl.acceptData(messages.single);
         });
 
         //  :/
-        it("handles lines that do not fit in a single impl socket package", function (done) {
+        it.skip("handles lines that do not fit in a single impl socket package", function (done) {
             var datas = 0;
             socket.on("data", function () {
                 datas += 1;
