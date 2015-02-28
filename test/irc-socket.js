@@ -47,7 +47,8 @@ var messages = {
     rpl_nicknameinuse_testbot_: ":irc.test.net 433 * testbot_ :Nickname is already in use.\r\n",
     ping: "PING :PINGMESSAGE\r\n",
     multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re",
-    multi2: "ally long message!\r\n"
+    multi2: "ally long message!\r\n",
+    webirc_error: "ERROR :Closing Link: [127.0.0.1] (CGI:IRC -- No access)\r\n"
 };
 
 describe("IRC Sockets", function () {
@@ -117,7 +118,7 @@ describe("IRC Sockets", function () {
     });
 
     describe("Startup Procedure", function () {
-        it("Minimal Config: USER & Single nickname w/success", function () {
+        it("Minimal config w/success", function () {
             var config = merge(baseConfig, {socket: MockSocket(logfn)});
             var socket = IrcSocket(config);
             
@@ -139,7 +140,7 @@ describe("IRC Sockets", function () {
             return promise;
         });
 
-        it("Minimal Config: USER & Single nickname w/success w/ready event", function (done) {
+        it("Minimal config w/success w/ready event", function (done) {
             var config = merge(baseConfig, {socket: MockSocket(logfn)});
             var socket = IrcSocket(config);
 
@@ -157,7 +158,7 @@ describe("IRC Sockets", function () {
             socket.impl.acceptData(messages.rpl_welcome);
         });
 
-        it("USER & Single nickname w/failure", function () {
+        it("Minimal config w/failure", function () {
             var config = merge(baseConfig, {socket: MockSocket(logfn)});
             var socket = IrcSocket(config);
 
@@ -176,7 +177,7 @@ describe("IRC Sockets", function () {
             return promise;
         });
 
-        it("USER & Multiple nicknames w/second success", function () {
+        it("Multiple nicknames w/success", function () {
             var config = merge(baseConfig, {
                 socket: MockSocket(logfn),
                 nicknames: ["testbot", "testbot_"]
@@ -185,7 +186,8 @@ describe("IRC Sockets", function () {
 
             var promise = socket.connect()
             .then(function (res) {
-                assert(res.ok().nickname = "testbot_");
+                assert(res.isOk());
+                assert(res.ok().nickname === "testbot_");
             });
 
             socket.impl.acceptConnect();
@@ -198,7 +200,7 @@ describe("IRC Sockets", function () {
             return promise;
         });
 
-        it("USER & Multiple nicknames w/failure", function () {
+        it("Multiple nicknames w/failure", function () {
             var config = merge(baseConfig, {
                 socket: MockSocket(logfn),
                 nicknames: ["testbot", "testbot_"]
@@ -221,6 +223,61 @@ describe("IRC Sockets", function () {
             socket.impl.acceptData(messages.rpl_nicknameinuse_testbot);
             assert(socket.impl.write.getCall(2).calledWithExactly("NICK testbot_\r\n", "utf-8"));
             socket.impl.acceptData(messages.rpl_nicknameinuse_testbot_);
+
+            return promise;
+        });
+
+        it("WEBIRC w/success", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                // socket.raw(["WEBIRC", proxy.password, proxy.username, proxy.hostname, proxy.ip]);
+                proxy: {
+                    password: "pword",
+                    username: "uname",
+                    hostname: "hostname.net",
+                    ip: "111.11.11.11"
+                }
+            });
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.ok().nickname === "testbot");
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("WEBIRC pword uname hostname.net 111.11.11.11\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(2).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
+        });
+
+        it("WEBIRC w/failure", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                // socket.raw(["WEBIRC", proxy.password, proxy.username, proxy.hostname, proxy.ip]);
+                proxy: {
+                    password: "pword",
+                    username: "uname",
+                    hostname: "hostname.net",
+                    ip: "111.11.11.11"
+                }
+            });
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isFail());
+                assert(res.fail() === IrcSocket.connectFailures.badProxyConfiguration);
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("WEBIRC pword uname hostname.net 111.11.11.11\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(2).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.webirc_error);
 
             return promise;
         });

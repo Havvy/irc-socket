@@ -166,13 +166,17 @@ var Socket = module.exports = function Socket (config) {
             };
 
             var startupHandler = function startupHandler (line) {
+                var parts = line.split(" ");
+
                 // If WEBIRC fails.
-                if (line.slice(0, 19) === "ERROR") {
+                if (parts[0] === "ERROR") {
                     socket.resolvePromise(Fail(failures.badProxyConfiguration));
+                    return;
+                // Ignore PINGs.
+                } else if (parts[0] === "PING") {
                     return;
                 }
 
-                var parts = line.split(" ");
                 var numeric = parts[1];
 
                 if (numeric === "CAP") {
@@ -260,7 +264,6 @@ var Socket = module.exports = function Socket (config) {
             if (typeof socket.proxy === "object") {
                 var proxy = socket.proxy;
 
-                socket.on("data", webircHandler);
                 socket.raw(["WEBIRC", proxy.password, proxy.username, proxy.hostname, proxy.ip]);
             }
 
