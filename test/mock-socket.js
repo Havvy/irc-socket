@@ -14,7 +14,7 @@ var intoPropertyDescriptors = function (object) {
 
 // pad to 7 characters (e.g. length("timeout"))
 var pad = function (str) {
-    return ("       " + str).slice(-9);
+    return ("      " + str).slice(-9);
 };
 
 var MockSocket = module.exports = function MockSocket (baselogfn) {
@@ -33,7 +33,7 @@ var MockSocket = module.exports = function MockSocket (baselogfn) {
 
         write: sinon.spy(function (out) {
             out = out.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
-            logfn(format("[WRITE] %s", out));
+            logfn(format("[WRITE]           %s", out));
         }),
 
         end:  function () { this.emit("close"); },
@@ -45,6 +45,11 @@ var MockSocket = module.exports = function MockSocket (baselogfn) {
             var datastr = data === undefined ? "no-data" : inspect(data);
             logfn(format(" [EMIT] %s %s", pad(message), datastr));
             EEProto.emit.apply(this, arguments);
+        },
+
+        on: function (message, fn) {
+            logfn(format("   [ON] %s %s", pad(message), fn.name));
+            EEProto.on.apply(this, arguments);
         },
 
         removeListener: function (message, fn) {

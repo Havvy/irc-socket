@@ -282,14 +282,43 @@ describe("IRC Sockets", function () {
 
             return promise;
         });
+
+        it.skip("Password w/success", function () {
+
+        });
+
+        it.skip("Password w/failure", function () {
+
+        });
+
+        it.skip("Capabilities required w/success", function () {
+
+        });
+
+        it.skip("Capabilities required w/failure", function () {
+
+        });
+
+        it.skip("Capabilities wanted w/AWK", function () {
+
+        });
+
+        it.skip("Capabilities wanted w/NAK", function () {
+
+        });
     });
 
-    describe.skip("handles pings", function () {
+    describe("handles pings", function () {
         var genericsocket, socket;
 
         beforeEach(function () {
-            genericsocket = MockSocket();
-            socket = IrcSocket(network, box(genericsocket));
+            var config = merge(baseConfig, {socket: MockSocket(logfn)});
+            socket = IrcSocket(config);
+            
+            var promise = socket.connect();
+            socket.impl.acceptConnect();
+            socket.impl.acceptData(messages.rpl_welcome);
+            return promise;
         });
 
         afterEach(function () {
@@ -297,12 +326,15 @@ describe("IRC Sockets", function () {
         });
 
         it("responds to pings", function (done) {
-            socket.on("ready", function () {
-                assert(genericsocket.write.calledWith("PONG :PINGMESSAGE\r\n", "utf-8"));
-                done();
+            socket.on("data", function () {
+                if (socket.impl.write.calledWith("PONG :PINGMESSAGE\r\n", "utf-8")) {
+                    done();
+                } else {
+                    done(socket.impl.write.lastCall.args[0]);
+                }
             });
 
-            socket.connect();
+            socket.impl.acceptData(messages.ping);
         });
     });
 
@@ -411,7 +443,6 @@ describe("IRC Sockets", function () {
         });
 
         it("is a single IRC line", function (done) {
-            console.log("beforeEach ends?");
             socket.on("data", function (line) {
                 if (line === messages.single.slice(0, -2)) {
                     done()
@@ -424,20 +455,22 @@ describe("IRC Sockets", function () {
         });
 
         //  :/
-        it.skip("handles lines that do not fit in a single impl socket package", function (done) {
-            var datas = 0;
-            socket.on("data", function () {
-                datas += 1;
+        it("handles lines that do not fit in a single impl socket package", function (done) {
+            var datas = []
+            socket.on("data", function (line) {
+                datas.push(line);
 
-                if (datas === 3) {
-                    assert(spy.calledWith("PING :ABC"));
-                    assert(spy.calledWith("PRIVMSG somebody :This is a really long message!"));
-                    done();
+                if (datas.length === 2) {
+                    if (datas[0] === "PING :ABC" && datas[1] === "PRIVMSG somebody :This is a really long message!") {
+                        done();
+                    } else {
+                        done(datas);
+                    }
                 }
             });
 
-            genericsocket.emit("data", MockSocket.messages.multi1);
-            genericsocket.emit("data", MockSocket.messages.multi2);
+            socket.impl.acceptData(messages.multi1);
+            socket.impl.acceptData(messages.multi2);
         });
     });
 });
