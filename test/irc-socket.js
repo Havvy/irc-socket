@@ -4,7 +4,7 @@ var assert = require("better-assert");
 var uinspect = require("util").inspect;
 var format = require("util").format;
 
-var debug = true;
+var debug = false;
 var logfn = debug ? console.log.bind(console) : function () {};
 
 var MockSocket = require("./mock-socket.js");
@@ -31,6 +31,11 @@ var merge = function (low, high) {
 
 var inspect = function (obj) {
     return uinspect(obj).replace(/\r/g, "\\r").replace(/\n/g, "\\n");
+};
+
+// pad to 7 characters (e.g. length("timeout"))
+var pad = function (str) {
+    return ("      " + str).slice(-9);
 };
 
 var baseConfig = {
@@ -83,7 +88,6 @@ describe("IRC Sockets", function () {
             assert(socket.isStarted() === true);
             assert(socket.isReady() === false);
             assert(socket.status === "connecting");
-            socket.end();
         });
 
         it("is 'starting' once connected but before the 001 message", function () {
@@ -309,7 +313,7 @@ describe("IRC Sockets", function () {
     });
 
     describe("handles pings", function () {
-        var genericsocket, socket;
+        var socket;
 
         beforeEach(function () {
             var config = merge(baseConfig, {socket: MockSocket(logfn)});
@@ -321,107 +325,110 @@ describe("IRC Sockets", function () {
             return promise;
         });
 
-        afterEach(function () {
-            socket.end();
-        });
-
         it("responds to pings", function (done) {
             socket.on("data", function () {
-                if (socket.impl.write.calledWith("PONG :PINGMESSAGE\r\n", "utf-8")) {
-                    done();
-                } else {
-                    done(socket.impl.write.lastCall.args[0]);
-                }
+                assert(socket.impl.write.calledWith("PONG :PINGMESSAGE\r\n", "utf-8"));
+                done();
             });
 
             socket.impl.acceptData(messages.ping);
         });
     });
 
-    describe.skip("timeouts", function () {
-        var genericsocket, socket, clock;
+    describe("timeouts", function () {
+        var socket, clock;
+        var fiveMinutes = 5 * 60 * 1000;
+        var millisecond = 1;
 
-        beforeEach(function (done) {
-            genericsocket = MockSocket();
-            socket = IrcSocket(network, box(genericsocket));
+        var tick = function (milliseconds) {
+            logfn(format("     Timer  [TICK] %s", pad(String(milliseconds))));
+            clock.tick(milliseconds);
+        }
+
+        beforeEach(function () {
+            logfn(format("     Timer  [FAKE]"))
             clock = sinon.useFakeTimers();
-            socket.on("ready", function () {
-                done();
-            });
-            clock.tick(1);
-            socket.connect();
-            clock.tick(1);
+
+            var config = merge(baseConfig, {socket: MockSocket(logfn)});
+            socket = IrcSocket(config);
+            
+            var promise = socket.connect();
+            socket.impl.acceptConnect();
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
         });
 
         afterEach(function () {
+            logfn(format("     Timer  [REAL]"))
             clock.restore();
-            socket.end();
         });
 
-        it("handles timeouts", function (done) {
-            var timeout_allowed = false;
-
-            socket.on("timeout", function () { 
-                assert(timeout_allowed);
+        it("sends a ping after 5 minutes of no server response", function (done) {
+            setTimeout(function () {
+                assert(socket.impl.write.calledWith("PING :ignored\r\n"));
                 done();
-            });
+            }, fiveMinutes);
 
-            // Send a ping 1000 time units in the future.
-            logfn("Advancing time by 1000");
-            clock.tick(1000);
-            logfn("Emitting ping.");
-            genericsocket.emit("data", MockSocket.messages.ping);
-
-            // setImmediate to let other things happens.
-            setImmediate(function () {
-                // Move 5000 time units into the future, where no ping
-                // from the server means we have timed out.
-                timeout_allowed = true;
-                logfn("Advancing time by 5000");
-                clock.tick(5000);
-            });
-
-            // Let the setImmediate happen.
-            logfn("Advancing time by 1");
-            clock.tick(1);
+            tick(fiveMinutes + millisecond);
         });
 
-        it("ends the socket when detecting a timeout", function (done) {
-            socket.on("close", function () {
-                done();
-            });
+        it("stays open if the PING is responded to", function (done) {
+            setTimeout(function () {
+                assert(socket.impl.write.calledWith("PING :ignored\r\n"));
+                socket.impl.acceptData("PONG :ignored\r\n");
 
-            clock.tick(1000);
-            genericsocket.emit("data", MockSocket.messages.ping);
+                socket.on("timeout", function () {
+                    done("timeout");
+                });
 
-            setImmediate(function () {
-                clock.tick(5000);
-            });
-
-            clock.tick(1);
-        });
-
-        it("goes through multiple pings without timing out", function (done) {
-            socket.on("timeout", function () {
-                assert(false);
-            });
-
-            var pingsLeft = 4;
-            void function pingLoop () {
-                if (pingsLeft === 0) {
+                setTimeout(function () {
+                    assert(socket.isReady());
                     done();
-                    return;
-                }
+                }, fiveMinutes + millisecond);
 
-                logfn("Ticking 1000 time units");
-                clock.tick(1000);
-                genericsocket.emit("data", MockSocket.messages.ping);
-                pingsLeft -= 1;
-                logfn("pingsLeft is now " + pingsLeft);
+                tick(fiveMinutes + millisecond);
+            }, fiveMinutes);
 
-                setImmediate(pingLoop)
-                clock.tick(1);
-            }();
+            tick(fiveMinutes + millisecond);
+        });
+
+        it("stays open if any data comes in", function (done) {
+            setTimeout(function () {
+                assert(socket.impl.write.calledWith("PING :ignored\r\n"));
+                socket.impl.acceptData("partial message");
+
+                socket.on("timeout", function () {
+                    done("timeout");
+                });
+
+                setTimeout(function () {
+                    assert(socket.isReady());
+                    done();
+                }, fiveMinutes + millisecond);
+
+                tick(fiveMinutes + millisecond);
+            }, fiveMinutes);
+
+            tick(fiveMinutes + millisecond);
+        });
+
+        it("times out if the ping is not responded too within five minutes", function (done) {
+            setTimeout(function () {
+                assert(socket.impl.write.calledWith("PING :ignored\r\n"));
+
+                socket.on("timeout", function () {
+                    done();
+                });
+
+                setTimeout(function () {
+                    done("no timeout");
+                }, fiveMinutes + millisecond * 2);
+
+                tick(fiveMinutes + millisecond);
+            }, fiveMinutes);
+
+            tick(fiveMinutes + millisecond);
         });
     });
 
@@ -444,11 +451,8 @@ describe("IRC Sockets", function () {
 
         it("is a single IRC line", function (done) {
             socket.on("data", function (line) {
-                if (line === messages.single.slice(0, -2)) {
-                    done()
-                } else {
-                    done(line);
-                }
+                assert(line === messages.single.slice(0, -2));
+                done();
             });
 
             socket.impl.acceptData(messages.single);
@@ -461,11 +465,8 @@ describe("IRC Sockets", function () {
                 datas.push(line);
 
                 if (datas.length === 2) {
-                    if (datas[0] === "PING :ABC" && datas[1] === "PRIVMSG somebody :This is a really long message!") {
-                        done();
-                    } else {
-                        done(datas);
-                    }
+                    assert(datas[0] === "PING :ABC" && datas[1] === "PRIVMSG somebody :This is a really long message!");
+                    done();
                 }
             });
 
