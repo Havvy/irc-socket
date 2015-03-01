@@ -46,11 +46,11 @@ var failures = {
     missingRequiredCapabilities: {}
 };
 
-var Socket = module.exports = function Socket (config) {
+var Socket = module.exports = function Socket (config, netSocket) {
     var socket = Object.create(Socket.prototype);
 
     // Internal implementation values.
-    socket.impl = config.socket;
+    socket.impl = netSocket || config.socket;
     // status := ["initialized", "connecting", "starting", "running", "closed"]
     socket.status = "initialized";
     socket.startupPromise = new Promise(function (resolve, reject) {

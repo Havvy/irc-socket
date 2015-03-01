@@ -1,4 +1,11 @@
-IRC Socket - Socket wrapper to emit irc messages and handle startup.
+IRC Socket - Socket wrapper to emit irc messages and handle server startup. 
+
+We provide for you the following benefits:
+
+* One "data" event per IRC message.
+* Pings are automatically ponged too..
+* The startup handshake (before the RPL_WELCOME) message is handled.
+* A `raw` method to send raw messages to the server.
 
 ## Installation ##
 
@@ -21,6 +28,8 @@ var ircSocket = IrcSocket({
     nicknames: ["freddy", "freddy_"],
     username: "freddy",
     realname: "Freddy",
+
+    password: "server-password",
 
     // For transparent proxies using
     // the webirc protocol.
@@ -48,65 +57,97 @@ var ircSocket = IrcSocket({
 });
 ```
 
-The following fields are required:
+### IrcSocket(config, socket) ###
 
-* socket
-* server
-* port
-* nicknames
-* username
-* realname
+The IrcSocket constructor is overloaded to provide a convenience form that
+takes the socket separately. This is provided so that if the config is created
+apart from the Socket, you don't need to modify the config object, especially
+since the rest of the configuration values can be serialized as JSON.
 
-If `capab: true` is passed to the configuration object the socket will send `CAP LS` first to initiate a capabilities negotiation.
+```javascript
+var NetSocket = require("net").Socket;
+var IrcSocket = require("irc-socket");
+var fs = require("fs");
 
-If `ipv6` is true, the socket will connect over ipv6. If false, it will connect over ipv4. The `localAddress` field is for binding
-what IP you connect as. If you don't know that that means, don't define it.
+var config = fs.readFileSync("config.json");
+var netSocket = new NetSocket();
+var ircSocket = IrcSocket(config, netSocket);
+```
 
-If `secure` is true, then the connection will be over TLS. See `Known Issues` below about using this. `rejectUnauthorized` is `false`
-by default. If your irc server has a valid ssl certificate, you can flip this to true.
+### Configuration
 
-### Dependency Management ###
+The configuration options are as follows.
 
-A simple irc socket uses a `net.Socket` socket by default. You can pass a
-seperate generic socket instead in the second parameter.
+ - `socket`: [**required**] A net.Socket that IrcSocket wraps around.
 
-If you pass `secure: true` in the network configuration object, this parameter is ignored.
+ - `server`: [**required**] The server to connect to. e.g. "irc.mibbit.net"
+
+ - `port`: [**required**] Which port to connect to. Normally 6667, or 6697 for TLS.
+
+ - `nicknames`: [**required**] Array of nicknames to try to use in order.
+
+ - `username`: [**required**] Username part of the hostmask.
+
+ - `realname`: [**required**] "Real name" to send with the USER command.
+
+ - `password`: Password used to connect to the network. Most networks don't have one.
+
+ - `proxy`: WEBIRC details if your connection is acting as a (probably web-based) proxy.
+
+ - `capabilities`: See the Capabilities section below..
+
+ - `connectOptions`: Options passed to the wrapped socket's connect method. Options `server` and `port` are overwritten.
+
+#### Capabilities ####
+
+Capabilities are a feature added in IRCv3 to extend IRC while still keeping
+IRCv2 compatibility. You can see the specification and well-known capabilities
+at [their website](http://ircv3.atheme.org/).
+
+Should you want to use IRCv3 features, pass an object with the `requires`
+property listing which features you absolutely require and `wants` for
+features that you can handle not being there. Both properties are optional.
 
 ## Starting and Closing the Socket ##
+
+You start and end the socket like a normal net.Socket with the `connect` and
+`end` methods. You shouldn't call `end` yourself though. Instead, you should
+write a QUIT message to the server (see tnext section).
+
+The `connect` method returns a
+`Promise<Result<{capabilities, nickname}, ConnectFailure>, Error>`.
+
+In general, you
 
 You can either use the "ready" event or use the promises returned by the connect method.
 
 ```javascript
-var myConnection = IrcSocket(...);
-myConnection.once('ready', function () {
-    myConnection.end();
+var client = IrcSocket(...);
+client.once('ready', function () {
+    client.end();
 }
-myConnection.connect();
+client.connect();
 ```
 
 ```javascript
-var myConnection = IrcSocket(...);
-myConnection.connect().then(function (res) {
-    // res is of type Result<{nickname, capabilities}, FailReason>
-    // If it failed, it already closed itself (or was force killed).
+var client = IrcSocket(...);
+client.connect().then(function (res) {
+    // If connect failed, it already closed itself (or was force killed).
     // Otherwise, it succeeded, and we want to end it ourself.
     if (res.isOk()) {
-        myConnection.raw("QUIT");
+        client.end();
     }
 });
 ```
 
 ## Writing to the Server ##
 To send messages to the server, use socket.raw(). It accepts either a
-string or an array of Strings. When an array is passed, elments containing
-whitespaces will be interpreted as a trailing parameter, else the element
-will be left as is. The end result will be joined to a String.
-The message '''must''' follow the 
+string or an array of Strings. The message '''must''' follow the 
 [IRC protocol](https://irc-wiki.org/RFC 1459).
 
 ```javascript
 var details = {...};
-var myConnection = Ircsocket(details);
+var client = Ircsocket(details);
 
 mySocket.connect().then(function (res) {
     if (res.isFail()) {
@@ -131,21 +172,16 @@ mySocket.on('data', function (message) {
 });
 
 mySocket.on('data', function (message) {
-    // This is sent when you do /quit too.
+    // This is sent when you send QUIT too.
     if (message.slice(0, 5) === "ERROR") {
         mySocket.end();
     }
-})
+});
 ```
 
-The raw method does not allow the usage of newline characters. This is
-mostly a security concern, so that if the user of the Socket doesn't
-validate input correctly, an evil user can't send a command causing
-the bot to quit:
+The raw method does not allow the usage of newline characters.
 
-```
-<eviluser>!say SUCKAS \nQUIT :Mua ha ha
-```
+If an array is passed to `raw`, the message will be joined with a space.
 
 ## Reading from the Server ##
 
@@ -169,13 +205,14 @@ ERROR :Closing Link: Havvy[127-00-00-00.redacted.com] (Quit: Custom quit message
 The IRC socket will listen to ping messages and respond to them 
 appropriately, so you do not need to handle this yourself.
 
-Furthermore, if no message has been received from the network within
-thirce the normal time it takes for a `PING` message to arrive, the
-socket will assume the connection was dropped and end the stream.
+Furthermore, if no message from the server is sent within five
+minutes, the IrcSocket will ping the server. If no response is
+thenn sent in five more minutes, the socket will close and emit
+a `"timeout"` event.
 
 Should that not be good enough, you can always use
-`setTimeout(number, optionalCallback)` to use the implementing socket's
-(usually a net.Socket) timeout mechanisms.
+`setTimeout(number, optionalCallback)` to use the implementing
+socket's (usually a net.Socket) timeout mechanisms.
 
 You can listen to the `"timeout"` event for when this occurs.
 
@@ -190,15 +227,14 @@ This method will return true if the socket was ever started.
 This method will return true when the socket is started, but not ended. It
 will otherwise return false.
 
+### isReady() ###
+
+This method will return true if the RPL_WELCOME message has been sent and the
+socket is still open. It will otherwise return false.
+
 ### getRealname() ###
 
 This method returns the realname (sometimes called gecos) of the connection.
-
-### setTimeout(timeout, [callback]) ###
-
-As per the implementation socket. See
-[Node documentation](http://nodejs.org/api/net.html#net_socket_settimeout_timeout_callback)
-for details.
 
 ## Events ##
 

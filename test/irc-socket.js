@@ -68,9 +68,7 @@ describe("IRC Sockets", function () {
         var socket;
 
         beforeEach(function () {
-            var config = Object.create(baseConfig);
-            config.socket = MockSocket(logfn);
-            socket = new IrcSocket(config);
+            socket = IrcSocket(baseConfig, MockSocket(logfn));
         });
 
         it("is 'initialized' at instantiation", function () {
@@ -124,8 +122,7 @@ describe("IRC Sockets", function () {
 
     describe("Startup Procedure", function () {
         it("Minimal config w/success", function () {
-            var config = merge(baseConfig, {socket: MockSocket(logfn)});
-            var socket = IrcSocket(config);
+            var socket = IrcSocket(baseConfig, MockSocket(logfn));
             
             var promise = socket.connect()
             .then(function (res) {
@@ -146,8 +143,7 @@ describe("IRC Sockets", function () {
         });
 
         it("Minimal config w/success w/ready event", function (done) {
-            var config = merge(baseConfig, {socket: MockSocket(logfn)});
-            var socket = IrcSocket(config);
+            var socket = IrcSocket(baseConfig, MockSocket(logfn));
 
             socket.on("ready", function (res) {
                 logfn(inspect(res));
@@ -164,8 +160,7 @@ describe("IRC Sockets", function () {
         });
 
         it("Minimal config w/failure", function () {
-            var config = merge(baseConfig, {socket: MockSocket(logfn)});
-            var socket = IrcSocket(config);
+            var socket = IrcSocket(baseConfig, MockSocket(logfn));
 
             var promise = socket.connect()
             .then(function (res) {
@@ -316,8 +311,7 @@ describe("IRC Sockets", function () {
         var socket;
 
         beforeEach(function () {
-            var config = merge(baseConfig, {socket: MockSocket(logfn)});
-            socket = IrcSocket(config);
+            socket = IrcSocket(baseConfig, MockSocket(logfn));
             
             var promise = socket.connect();
             socket.impl.acceptConnect();
@@ -349,8 +343,7 @@ describe("IRC Sockets", function () {
             logfn(format("     Timer  [FAKE]"))
             clock = sinon.useFakeTimers();
 
-            var config = merge(baseConfig, {socket: MockSocket(logfn)});
-            socket = IrcSocket(config);
+            socket = IrcSocket(baseConfig, MockSocket(logfn));
             
             var promise = socket.connect();
             socket.impl.acceptConnect();
@@ -436,8 +429,7 @@ describe("IRC Sockets", function () {
         var socket;
 
         beforeEach(function () {
-            var config = merge(baseConfig, {socket: MockSocket(logfn)});
-            socket = IrcSocket(config);
+            socket = IrcSocket(baseConfig, MockSocket(logfn));
             
             var promise = socket.connect();
             socket.impl.acceptConnect();
