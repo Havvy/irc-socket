@@ -282,12 +282,33 @@ describe("IRC Sockets", function () {
             return promise;
         });
 
-        it.skip("Password w/success", function () {
+        it("Password w/success", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                password: "123456"
+            });
+            var socket = IrcSocket(config);
 
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isOk());
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("PASS 123456\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(2).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
         });
 
         it.skip("Password w/failure", function () {
 
+        });
+
+        it.skip("Capabilities w/command not found", function () {
+            // :irc.eu.mibbit.net 421 Havvy2 BLAH :Unknown command
         });
 
         it.skip("Capabilities required w/success", function () {
