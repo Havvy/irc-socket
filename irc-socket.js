@@ -43,7 +43,8 @@ var failures = {
     killed: {},
     nicknamesUnavailable: {},
     badProxyConfiguration: {},
-    missingRequiredCapabilities: {}
+    missingRequiredCapabilities: {},
+    badPassword: {}
 };
 
 var Socket = module.exports = function Socket (config, netSocket) {
@@ -139,7 +140,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
 
         if (socket.capabilities) {
             var serverCapabilties;
-            var acknowledgedCapabilities = socket.capabilities.slice();
+            var acknowledgedCapabilities = socket.capabilities.requires.slice();
 
             var sentRequests = 0;
             var respondedRequests = 0;
@@ -180,19 +181,24 @@ var Socket = module.exports = function Socket (config, netSocket) {
             var numeric = parts[1];
 
             if (numeric === "CAP") {
+                var capabilities = socket.capabilities;
+
                 if (parts[3] === "LS") {
                     serverCapabilties = parts.slice(4);
                     serverCapabilties[0] = serverCapabilties[0].slice(1);
 
-                    if (capabilities.requires && capabilities.requires.every(function (capability) {
-                        return includes(serverCapabilties, capability);
-                    })) {
-                        socket.raw(format("CAP REQ :%s", capabilities.requires.join(" ")));
-                        sentRequests += 1;
-                    } else {
-                        socket.raw("QUIT");
-                        socket.resolvePromise(Fail(failures.missingRequiredCapabilities));
-                        return;
+                    if (capabilities.requires) {
+                        if (capabilities.requires.every(function (capability) {
+                            return includes(serverCapabilties, capability);
+                        }))
+                        {
+                            socket.raw(format("CAP REQ :%s", capabilities.requires.join(" ")));
+                            sentRequests += 1;
+                        } else {
+                            socket.raw("QUIT");
+                            socket.resolvePromise(Fail(failures.missingRequiredCapabilities));
+                            return;
+                        }
                     }
 
                     if (capabilities.wants) {
@@ -204,8 +210,6 @@ var Socket = module.exports = function Socket (config, netSocket) {
                             socket.raw(format("CAP REQ :%s", capability));
                             sentRequests += 1;
                         });
-
-                        allRequestsSent = true;
                     }
 
                     return;
@@ -223,17 +227,24 @@ var Socket = module.exports = function Socket (config, netSocket) {
 
                     var capability = parts[4].slice(1);
 
-                    if (includes(capabilities.wants, capability)) {
+                    if (capabilities.wants && includes(capabilities.wants, capability)) {
                         acknowledgedCapabilities.push(capability);
                     }
                 }
 
-                if (allRequestsSent && sentRequests === respondedRequests) {
+                console.log(format("sent: %s, responded: %s", sentRequests, respondedRequests));
+                if (sentRequests === respondedRequests) {
                     // 4. Send USER
                     sendUser();
 
                     // 5. Send NICK
                     sendNick();
+                }
+            } else if (numeric === "NOTICE") {
+                if (endsWith(line, "Login unsuccessful")) {
+                    // irc.twitch.tv only in their non-standardness.
+                    // Server doesn't kill the socket, but it doesn't accept input afterwards either.
+                    socket.resolvePromise(Fail(failures.badPassword));
                 }
             } else if (numeric === "001") {
                 socket.status = "running";
@@ -245,11 +256,31 @@ var Socket = module.exports = function Socket (config, netSocket) {
 
                 socket.emit("ready", data);
                 socket.resolvePromise(Ok(data));
+            } else if (includes(["410", "421"], numeric)) {
+                // Sent by Twitch.tv when doing a CAP command.
+                if (socket.capabilities.requires) {
+                    socket.raw("QUIT");
+                    socket.resolvePromise(Fail(failures.missingRequiredCapabilities));
+                } else {
+                    // 4. Send USER
+                    sendUser();
+
+                    // 5. Send NICK
+                    sendNick();
+                }
+            } else if (numeric === "464") {
+                // Only sent if a bad password is given.
+                // Server will end the socket afterwards.
+                socket.resolvePromise(Fail(failures.badPassword));
             } else if (includes(["431", "432", "433", "436", "437", "484"], numeric)) {
+                // Reasons you cannot use a nickname. We ignore what it is,
+                // and just try with the next nickname.
                 sendNick();
             } else if (numeric === "PING") {
+                // PINGs are handled elsewhere, and a known message type.
                 /* no-op */
             } else {
+                // TEMP: Other things are sent during the initial handshade.
                 throw new Error("Unknown message type sent during connection!");
             }
         };

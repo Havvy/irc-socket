@@ -33,7 +33,7 @@ var MockSocket = module.exports = function MockSocket (baselogfn) {
 
         write: sinon.spy(function (out) {
             out = out.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
-            logfn(format("[WRITE]           %s", out));
+            logfn(format("[WRITE]           '%s'", out));
         }),
 
         end:  function () { this.emit("close"); },

@@ -1,6 +1,6 @@
 var sinon = require("sinon");
 var assert = require("better-assert");
-// var equal = require("deep-eql");
+var equal = require("deep-eql");
 var uinspect = require("util").inspect;
 var format = require("util").format;
 
@@ -54,7 +54,14 @@ var messages = {
     single: "nick!user@host.net PRIVMSG testbot :Short message.\r\n",
     multi1: "PING :ABC\r\nPRIVMSG somebody :This is a re",
     multi2: "ally long message!\r\n",
-    webirc_error: "ERROR :Closing Link: [127.0.0.1] (CGI:IRC -- No access)\r\n"
+    webirc_error: "ERROR :Closing Link: [127.0.0.1] (CGI:IRC -- No access)\r\n",
+    err_badpassword: ":irc.test.net 464 testbot :Invalid Password\r\n",
+    notice_badlogin: ":irc.test.net NOTICE * :Login unsuccessful\r\n",
+    cap_ls: ":irc.test.net CAP * LS :a b\r\n",
+    cap_ack_a: ":irc.test.net CAP * ACK :a\r\n",
+    cap_nak_a: ":irc.test.net CAP * NAK :a\r\n",
+    cap_not_found_410: ":irc.test.net 410 :Invalid CAP command\r\n",
+    cap_not_found_421: ":irc.eu.mibbit.net 421 Havvy2 BLAH :Unknown command\r\n"
 };
 
 describe("IRC Sockets", function () {
@@ -313,34 +320,125 @@ describe("IRC Sockets", function () {
             var promise = socket.connect()
             .then(function (res) {
                 assert(res.isFail());
-                assert(res.fail() === IrcSocket.connectFailures.killed);
+                assert(res.fail() === IrcSocket.connectFailures.badPassword);
             });
 
             socket.impl.acceptConnect();
             assert(socket.impl.write.getCall(0).calledWithExactly("PASS 123456\r\n", "utf-8"));
             assert(socket.impl.write.getCall(1).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
             assert(socket.impl.write.getCall(2).calledWithExactly("NICK testbot\r\n", "utf-8"));
-            
+            socket.impl.acceptData(messages.err_badpassword);
             socket.impl.end();
 
             return promise;
         });
 
-        it.skip("Capabilities w/command not found", function () {
-            // :irc.eu.mibbit.net 421 Havvy2 BLAH :Unknown command
+        it.skip("Password w/failure w/Twitch", function () {
+
+        });
+
+        it("Capabilities w/command not found", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                capabilities: {
+                    requires: ["a"]
+                }
+            });
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.fail());
+                assert(res.fail() === IrcSocket.connectFailures.missingRequiredCapabilities);
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("CAP LS\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_not_found_421);
+            assert(socket.impl.write.getCall(1).calledWithExactly("QUIT\r\n", "utf-8"));
+
+            return promise;
         });
 
         // Primarily for Twitch.tv...
-        it.skip("Capabilities w/invalid command", function () {
-            // :tmi.twitch.tv 410 :Invalid CAP command
+        it("Capabilities w/invalid command", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                capabilities: {
+                    requires: ["a"]
+                }
+            });
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.fail());
+                assert(res.fail() === IrcSocket.connectFailures.missingRequiredCapabilities);
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("CAP LS\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_not_found_410);
+            assert(socket.impl.write.getCall(1).calledWithExactly("QUIT\r\n", "utf-8"));
+
+            return promise;
         });
 
-        it.skip("Capabilities required w/success", function () {
+        it("Capabilities required w/success", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                capabilities: {
+                    requires: ["a"]
+                }
+            });
+            var socket = IrcSocket(config);
 
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isOk());
+                assert(equal(res.ok().capabilities, ["a"]));
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("CAP LS\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_ls);
+            assert(socket.impl.write.getCall(1).calledWithExactly("CAP REQ :a\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_ack_a);
+            assert(socket.impl.write.getCall(2).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(3).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
         });
 
-        it.skip("Capabilities required w/failure", function () {
+        it("Capabilities required w/failure", function () {
+            var config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                capabilities: {
+                    requires: ["a"]
+                }
+            });
+            var socket = IrcSocket(config);
 
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isFail());
+
+                Object.keys(IrcSocket.connectFailures).filter(function (key) {
+                    return IrcSocket.connectFailures[key] === res.fail();
+                }).forEach(function (key) {
+                    logfn("Key", key);
+                })
+                assert(res.fail() === IrcSocket.connectFailures.missingRequiredCapabilities);
+            });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("CAP LS\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_ls);
+            assert(socket.impl.write.getCall(1).calledWithExactly("CAP REQ :a\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_nak_a);
+
+            return promise;
         });
 
         it.skip("Capabilities wanted w/AWK", function () {
@@ -348,6 +446,10 @@ describe("IRC Sockets", function () {
         });
 
         it.skip("Capabilities wanted w/NAK", function () {
+
+        });
+
+        it.skip("Capabilities wanted (multiple) w/AWK & NAK", function () {
 
         });
     });
