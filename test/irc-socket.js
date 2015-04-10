@@ -15,7 +15,13 @@ const network = Object.freeze({
     user : 'testuser',
     server : 'irc.test.net',
     realname: 'realbot',
-    port: 6667
+    port: 6667,
+    webirc: {
+        password: "pwd",
+        client: "test",
+        hostname: "localhost",
+        ip: "127.0.0.1"
+    }
 });
 
 const box = function (value) {
@@ -71,6 +77,7 @@ describe("IRC Sockets", function () {
             const socket = IrcSocket(network, box(genericsocket));
             socket.connect();
             socket.end();
+            assert(genericsocket.write.calledWith('WEBIRC pwd test localhost 127.0.0.1\r\n', 'utf-8'));
             assert(genericsocket.write.calledWith('NICK testbot\r\n', 'utf-8'));
             assert(genericsocket.write.calledWith('USER testuser 8 * realbot\r\n', 'utf-8'));
         });
