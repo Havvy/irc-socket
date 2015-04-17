@@ -114,6 +114,9 @@ var Socket = module.exports = function Socket (config, NetSocket) {
                     socket.raw(['PASS', socket.network.password]);
                 }
 
+                if (socket.network.webirc) {
+                	socket.raw(['WEBIRC', socket.network.webirc.password, socket.network.webirc.client, socket.network.webirc.hostname, socket.network.webirc.ip]);
+                }
                 socket.raw(['NICK', socket.network.nickname || socket.network.nick]);
                 socket.raw(['USER', socket.network.username || socket.network.user || 'user', '8', '*', socket.network.realname]);
             };
