@@ -543,6 +543,45 @@ describe("IRC Sockets", function () {
 
             return promise;
         });
+
+        it("Config object is not mutated", function () {
+            var config = Object.freeze({
+                nicknames: Object.freeze(["testbot"]),
+                username: "testuser",
+                server: "irc.test.net",
+                realname: "realbot",
+                port: 6667,
+                socket: MockSocket(logfn)
+            });
+
+            var socket = IrcSocket(config);
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isOk());
+            });
+
+            socket.impl.acceptConnect();
+            logfn(inspect(socket.impl.write.getCall(0).args));
+            assert(socket.impl.write.getCall(0).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(1).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
+        });
+
+        it("connectArgs is passed to connect method", function () {
+            var config = merge(baseConfig, {});
+            var socket = IrcSocket(config, MockSocket(logfn));
+
+            socket.connect();
+            socket.impl.acceptConnect();
+
+            assert(equal(socket.impl.connect.getCall(0).args, [{
+                port: 6667,
+                server: "irc.test.net"
+            }]));
+        });
     });
 
     describe("handles pings", function () {
