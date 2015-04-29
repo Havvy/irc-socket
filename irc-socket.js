@@ -79,7 +79,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
 
     socket.connectOptions = typeof config.connectOptions === "object" ? Object.create(config.connectOptions) : {};
     socket.connectOptions.port = config.port || 6667;
-    socket.connectOptions.server = config.server;
+    socket.connectOptions.host = config.server;
 
     // Socket Timeout variables.
     // After five minutes without a server response, send a PONG.

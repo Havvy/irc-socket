@@ -579,7 +579,7 @@ describe("IRC Sockets", function () {
 
             assert(equal(socket.impl.connect.getCall(0).args, [{
                 port: 6667,
-                server: "irc.test.net"
+                host: "irc.test.net"
             }]));
         });
     });

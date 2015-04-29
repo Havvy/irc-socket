@@ -80,7 +80,7 @@ The configuration options are as follows.
 
  - `socket`: [**required**] A net.Socket that IrcSocket wraps around.
 
- - `server`: [**required**] The server to connect to. e.g. "irc.mibbit.net"
+ - `server`: [**required**] The server/host to connect to. e.g. "irc.mibbit.net"
 
  - `port`: [**required**] Which port to connect to. Normally 6667, or 6697 for TLS.
 
@@ -96,7 +96,7 @@ The configuration options are as follows.
 
  - `capabilities`: See the Capabilities section below..
 
- - `connectOptions`: Options passed to the wrapped socket's connect method. Options `server` and `port` are overwritten.
+ - `connectOptions`: Options passed to the wrapped socket's connect method. Options `host` and `port` are overwritten. See [io.js's net.Socket.prototype.connect](https://iojs.org/api/net.html#net_socket_connect_options_connectlistener) for options when using `net.Socket` in either Node.js or io.js. (Node.js's documentation is incomplete.)
 
 #### Capabilities ####
 
@@ -108,6 +108,18 @@ Should you want to use IRCv3 features, pass an object with the `requires`
 property listing which features you absolutely require and `wants` for
 features that you can handle not being there. Both properties are optional.
 
+#### Proxy ####
+
+The proxy object has the following four fields, all required:
+
+- `password`: Shared secret password between you and the network you are connecting with.
+
+- `username`: User or client requesting spoof.
+
+- `hostname`: Hostname of user connecting to your proxy.
+
+- `ip`: IP Address of user connecting to your proxy.
+
 ## Starting and Closing the Socket ##
 
 You start and end the socket like a normal net.Socket with the `connect` and
@@ -116,8 +128,6 @@ write a QUIT message to the server (see tnext section).
 
 The `connect` method returns a
 `Promise<Result<{capabilities, nickname}, ConnectFailure>, Error>`.
-
-In general, you
 
 You can either use the "ready" event or use the promises returned by the connect method.
 
