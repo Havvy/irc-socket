@@ -25,6 +25,7 @@ var MockSocket = module.exports = function MockSocket (baselogfn) {
     };
 
     var connecting = false;
+    var ended = false;
 
     return Object.create(EEProto, intoPropertyDescriptors({
         connect : sinon.spy(function () {
@@ -34,9 +35,17 @@ var MockSocket = module.exports = function MockSocket (baselogfn) {
         write: sinon.spy(function (out) {
             out = out.replace(/\r/g, "\\r").replace(/\n/g, "\\n");
             logfn(format("[WRITE]           '%s'", out));
+
+            if (ended) {
+                throw new Error("Write After End");
+            }
         }),
 
-        end:  function () { this.emit("close"); },
+        end:  function () { 
+            this.emit("close");
+            ended = true;
+        },
+
         setNoDelay: sinon.spy(),
         setEncoding: sinon.spy(),
 

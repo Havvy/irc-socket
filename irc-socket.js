@@ -54,7 +54,8 @@ var failures = {
     nicknamesUnavailable: {},
     badProxyConfiguration: {},
     missingRequiredCapabilities: {},
-    badPassword: {}
+    badPassword: {},
+    socketEnded: {}
 };
 
 var Socket = module.exports = function Socket (config, netSocket) {
@@ -141,6 +142,13 @@ var Socket = module.exports = function Socket (config, netSocket) {
     // 6. Resolve startupPromise.
     // TODO(Havvy): Refactor and clean up!!!
     socket.impl.once("connect", function doStartup () {
+        // If `socket.end()` is called before the connect event
+        // fires, then we ignore the connect event, since we are
+        // already ending/ended.
+        if (!socket.startupPromise.isPending()) {
+            return;
+        }
+
         socket.status = "starting";
         socket.emit("connect");
         timeout = setTimeout(onSilence, timeoutPeriod);
@@ -293,7 +301,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
         // Subscribe & Unsubscribe
         // TODO(Havvy): Return /this/ Promise, 
         socket.on("data", startupHandler);
-        socket.startupPromise.then(function (res) {
+        socket.startupPromise.finally(function (res) {
             socket.removeListener("data", startupHandler);
         });
 
@@ -328,7 +336,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
     });
 
     socket.impl.on("close", function () {
-        if (socket.status === "starting") {
+        if (socket.status === "starting" || socket.status === "connecting") {
             socket.resolvePromise(Fail(failures.killed));
         }
         socket.status = "closed";
@@ -337,6 +345,10 @@ var Socket = module.exports = function Socket (config, netSocket) {
 
     socket.impl.on("end", function () {
         socket.emit("end");
+
+        if (socket.startupPromise.isPending()) {
+            this.resolvePromise(Fail(failures.socketEnded));
+        }
 
         // Clean up our timeout.
         clearTimeout(timeout);
@@ -373,6 +385,10 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
     end: function () {
         if (!this.isConnected()) {
             return;
+        }
+
+        if (this.startupPromise.isPending()) {
+            this.resolvePromise(Fail(failures.socketEnded));
         }
 
         this.impl.end();

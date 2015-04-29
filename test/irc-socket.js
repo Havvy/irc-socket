@@ -118,7 +118,7 @@ describe("IRC Sockets", function () {
         });
 
         it("is 'closed' once ended", function () {
-            socket.connect();
+            socket.connect().then(function () {}, function () {});
             socket.end();
             logfn("Status:", socket.status);
             assert(socket.isConnected() === false);
@@ -582,6 +582,20 @@ describe("IRC Sockets", function () {
                 host: "irc.test.net"
             }]));
         });
+
+        it("Failure by .end() before connect event fired", function () {
+            var socket = IrcSocket(baseConfig, MockSocket(logfn));
+
+            var promise = socket.connect()
+            .then(function (res) {
+                assert(res.isFail());
+                assert(res.fail() === IrcSocket.connectFailures.socketEnded);
+            });
+            socket.end();
+            socket.impl.acceptConnect();
+
+            return promise;
+        })
     });
 
     describe("handles pings", function () {
