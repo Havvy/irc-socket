@@ -287,9 +287,6 @@ var Socket = module.exports = function Socket (config, netSocket) {
             } else if (numeric === "PING") {
                 // PINGs are handled elsewhere, and a known message type.
                 /* no-op */
-            } else {
-                // TEMP: Other things are sent during the initial handshade.
-                throw new Error("Unknown message type sent during connection!");
             }
         };
 
