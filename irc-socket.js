@@ -347,7 +347,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
         socket.emit("end");
 
         if (socket.startupPromise.isPending()) {
-            this.resolvePromise(Fail(failures.socketEnded));
+            socket.resolvePromise(Fail(failures.socketEnded));
         }
 
         // Clean up our timeout.
