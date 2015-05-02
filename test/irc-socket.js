@@ -7,7 +7,7 @@ var format = require("util").format;
 var debug = false;
 var logfn = debug ? console.log.bind(console) : function () {};
 
-var MockSocket = require("./mock-socket.js");
+var MockSocket = require("@havvy/mock-net-socket");
 var IrcSocket = require("../irc-socket.js");
 
 // Merge two objects to create a new object,
