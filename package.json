@@ -1,6 +1,6 @@
 {
   "name": "irc-socket",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "Simple IRC Socket for usage with IRC libraries.",
   "main": "irc-socket.js",
   "scripts": {
