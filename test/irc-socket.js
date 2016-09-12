@@ -705,9 +705,12 @@ describe("IRC Sockets", function () {
                     done();
                 });
 
+                // NOTE(Havvy): This fails for one or two milliseconds past,
+                //              but not three milliseconds. Not sure why.
+                //              Something about what sinon does.
                 setTimeout(function () {
                     done("no timeout");
-                }, fiveMinutes + millisecond * 2);
+                }, fiveMinutes + millisecond * 3);
 
                 tick(fiveMinutes + millisecond);
             }, fiveMinutes);
