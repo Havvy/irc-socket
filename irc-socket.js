@@ -250,6 +250,8 @@ var Socket = module.exports = function Socket (config, netSocket) {
                 }
 
                 if (sentRequests === respondedRequests) {
+                    socket.raw("CAP END");
+
                     // 4. Send USER
                     sendUser();
 

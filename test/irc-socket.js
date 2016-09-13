@@ -424,8 +424,9 @@ describe("IRC Sockets", function () {
             socket.impl.acceptData(messages.cap_ls);
             assert(socket.impl.write.getCall(1).calledWithExactly("CAP REQ :a\r\n", "utf-8"));
             socket.impl.acceptData(messages.cap_ack_a);
-            assert(socket.impl.write.getCall(2).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
-            assert(socket.impl.write.getCall(3).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(2).calledWithExactly("CAP END\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(3).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(4).calledWithExactly("NICK testbot\r\n", "utf-8"));
             socket.impl.acceptData(messages.rpl_welcome);
 
             return promise;
@@ -481,8 +482,9 @@ describe("IRC Sockets", function () {
             socket.impl.acceptData(messages.cap_ls);
             assert(socket.impl.write.getCall(1).calledWithExactly("CAP REQ :a\r\n", "utf-8"));
             socket.impl.acceptData(messages.cap_ack_a);
-            assert(socket.impl.write.getCall(2).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
-            assert(socket.impl.write.getCall(3).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(2).calledWithExactly("CAP END\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(3).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(4).calledWithExactly("NICK testbot\r\n", "utf-8"));
             socket.impl.acceptData(messages.rpl_welcome);
 
             return promise;
@@ -508,8 +510,9 @@ describe("IRC Sockets", function () {
             socket.impl.acceptData(messages.cap_ls);
             assert(socket.impl.write.getCall(1).calledWithExactly("CAP REQ :a\r\n", "utf-8"));
             socket.impl.acceptData(messages.cap_nak_a);
-            assert(socket.impl.write.getCall(2).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
-            assert(socket.impl.write.getCall(3).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(2).calledWithExactly("CAP END\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(3).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(4).calledWithExactly("NICK testbot\r\n", "utf-8"));
             socket.impl.acceptData(messages.rpl_welcome);
 
             return promise;
@@ -537,8 +540,9 @@ describe("IRC Sockets", function () {
             assert(socket.impl.write.getCall(2).calledWithExactly("CAP REQ :b\r\n", "utf-8"));
             socket.impl.acceptData(messages.cap_ack_a);
             socket.impl.acceptData(messages.cap_nak_b);
-            assert(socket.impl.write.getCall(3).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
-            assert(socket.impl.write.getCall(4).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(3).calledWithExactly("CAP END\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(4).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(5).calledWithExactly("NICK testbot\r\n", "utf-8"));
             socket.impl.acceptData(messages.rpl_welcome);
 
             return promise;
