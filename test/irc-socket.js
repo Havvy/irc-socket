@@ -62,7 +62,12 @@ var messages = {
     cap_nak_a: ":irc.test.net CAP * NAK :a\r\n",
     cap_nak_b: ":irc.test.net CAP * NAK :b\r\n",
     cap_not_found_410: ":irc.test.net 410 :Invalid CAP command\r\n",
-    cap_not_found_421: ":irc.eu.mibbit.net 421 Havvy2 BLAH :Unknown command\r\n"
+    cap_not_found_421: ":irc.eu.mibbit.net 421 Havvy2 BLAH :Unknown command\r\n",
+    e_with_acute: "\u00E9\r\n",
+    e_with_combining_acute: "\u0065\u0301\r\n",
+    fi_ligature: "\uFB01\r\n",
+    hangul_vowel_string_concat1: "\u1100",
+    hangul_vowel_string_concat2: "\u1161\u11A8\r\n"
 };
 
 describe("IRC Sockets", function () {
@@ -750,7 +755,7 @@ describe("IRC Sockets", function () {
 
         //  :/
         it("handles lines that do not fit in a single impl socket package", function (done) {
-            var datas = []
+            var datas = [];
             socket.on("data", function (line) {
                 datas.push(line);
 
@@ -763,5 +768,30 @@ describe("IRC Sockets", function () {
             socket.impl.acceptData(messages.multi1);
             socket.impl.acceptData(messages.multi2);
         });
+
+        it("normalizes correctly", function () {
+            var datas = [];
+            socket.on("data", function (line) {
+                datas.push(line);
+            });
+
+            socket.impl.acceptData(messages.e_with_acute);
+            socket.impl.acceptData(messages.e_with_combining_acute);
+            socket.impl.acceptData(messages.fi_ligature);
+            assert(datas[0] === datas[1]);
+            assert(datas[2] === "\uFB01");
+        });
+
+        it("normalizes correctly when faced with multiple lines for a single msg", function () {
+            var datas = [];
+            socket.on("data", function (line) {
+                datas.push(line);
+            });
+
+            socket.impl.acceptData(messages.hangul_vowel_string_concat1);
+            socket.impl.acceptData(messages.hangul_vowel_string_concat2);
+            assert(datas.length === 1);
+            assert(datas[0] === "\uAC01");
+        })
     });
 });
