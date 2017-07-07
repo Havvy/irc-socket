@@ -116,7 +116,9 @@ var Socket = module.exports = function Socket (config, netSocket) {
             var lines = data.split("\r\n");
             lines[0] = lastLine + lines[0];
             lastLine = lines.pop();
-            lines.forEach(emitLine);
+            lines.forEach(function (line) {
+              emitLine(line.normalize());
+            });
 
             // We've got data. Reset the timeout.
             clearTimeout(timeout);
