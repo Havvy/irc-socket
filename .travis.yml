@@ -1,6 +1,7 @@
 language: node_js
 node_js:
   - "node"
-  - "iojs"
+  - "4"
+  - "6"
 notifications:
   irc: "irc.mibbit.net#heartless"
