@@ -88,7 +88,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
     // within five minutes, we'll have assumed we've be DQed, and
     // end the socket.
     var timeout = null;
-    var timeoutPeriod = 5 * 60 * 1000;
+    var timeoutPeriod = config.timeout || 5 * 60 * 1000;
     var onSilence = function () {
         timeout = setTimeout(onNoPong, timeoutPeriod);
         socket.raw("PING :ignored");
