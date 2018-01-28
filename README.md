@@ -53,7 +53,11 @@ var ircSocket = IrcSocket({
         localAddress: "a-local-address",
         localPort: "a-local-port",
         family: 6, // for ipv6 with net.Socket
-    }
+    },
+
+    // optional number of milliseconds with no 
+    // response before timeout is fired
+    timeout: 5 * 60 * 1000 
 });
 ```
 
