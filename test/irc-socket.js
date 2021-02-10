@@ -104,7 +104,7 @@ describe("IRC Sockets", function () {
 
         it("is 'starting' once connected but before the 001 message", function () {
             socket.connect();
-            socket.impl.acceptConnect();
+            socket.connection.acceptConnect();
             logfn("Status:", socket.status);
             assert(socket.isConnected() === true);
             assert(socket.isStarted() === true);
@@ -114,8 +114,8 @@ describe("IRC Sockets", function () {
 
         it("is 'ready' once 001 message is sent", function () {
             socket.connect();
-            socket.impl.acceptConnect();
-            socket.impl.acceptData(messages.rpl_welcome);
+            socket.connection.acceptConnect();
+            socket.connection.acceptData(messages.rpl_welcome);
             logfn("Status:", socket.status);
             assert(socket.isConnected() === true);
             assert(socket.isStarted() === true);
