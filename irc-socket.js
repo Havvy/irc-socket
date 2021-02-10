@@ -7,15 +7,15 @@
  * Send messages to server with .raw(String) method.
  */
 
-var EventEmitter = require("events").EventEmitter;
-var inspect = require("util").inspect;
-var format = require("util").format;
-var Promise = require("bluebird");
-var rresult = require("r-result");
-var Ok = rresult.Ok;
-var Fail = rresult.Fail;
+const EventEmitter = require("events").EventEmitter;
+const inspect = require("util").inspect;
+const format = require("util").format;
+const Promise = require("bluebird");
+const rresult = require("r-result");
+const Ok = rresult.Ok;
+const Fail = rresult.Fail;
 
-var intoPropertyDescriptors = function (object) {
+const intoPropertyDescriptors = function (object) {
     Object.keys(object).forEach(function (key) {
         object[key] = { value: object[key] };
     });
@@ -23,11 +23,11 @@ var intoPropertyDescriptors = function (object) {
     return object;
 };
 
-var includes = function (array, value) {
+const includes = function (array, value) {
     return array.indexOf(value) !== -1;
 };
 
-var pick = function (object, keys) {
+const pick = function (object, keys) {
     var newObject = Object.create(Object.getPrototypeOf(object));
 
     Object.keys(object)
@@ -37,7 +37,7 @@ var pick = function (object, keys) {
     return newObject;
 };
 
-var copyJsonMaybe = function (object) {
+const copyJsonMaybe = function (object) {
     if (!object) {
         return undefined;
     }
@@ -45,11 +45,11 @@ var copyJsonMaybe = function (object) {
     return JSON.parse(JSON.stringify(object));
 };
 
-var endsWith = function (string, postfix) {
+const endsWith = function (string, postfix) {
     return string.lastIndexOf(postfix) === string.length - postfix.length;
 };
 
-var failures = {
+const failures = {
     killed: {},
     nicknamesUnavailable: {},
     badProxyConfiguration: {},
@@ -58,8 +58,8 @@ var failures = {
     socketEnded: {}
 };
 
-var Socket = module.exports = function Socket (config, netSocket) {
-    var socket = Object.create(Socket.prototype);
+const Socket = module.exports = function Socket (config, netSocket) {
+    const socket = Object.create(Socket.prototype);
 
     // Internal implementation values.
     socket.impl = netSocket || config.socket;
@@ -87,13 +87,13 @@ var Socket = module.exports = function Socket (config, netSocket) {
     // If the server doesn't PING back (or send any message really)
     // within five minutes, we'll have assumed we've be DQed, and
     // end the socket.
-    var timeout = null;
-    var timeoutPeriod = config.timeout || 5 * 60 * 1000;
-    var onSilence = function () {
+    let timeout = null;
+    const timeoutPeriod = config.timeout || 5 * 60 * 1000;
+    const onSilence = function () {
         timeout = setTimeout(onNoPong, timeoutPeriod);
         socket.raw("PING :ignored");
     };
-    var onNoPong = function () {
+    const onNoPong = function () {
         socket.emit("timeout");
     };
 
@@ -101,11 +101,11 @@ var Socket = module.exports = function Socket (config, netSocket) {
     // Transforms the raw stream of data events into a stream of
     // one complete line per data event.
     // Also handles timeouts.
-    var dataHandler = function () {
-        var emitLine = socket.emit.bind(socket, "data");
-        var lastLine = "";
+    const dataHandler = function () {
+        const emitLine = socket.emit.bind(socket, "data");
+        let lastLine = "";
 
-        var onData = function (data) {
+        const onData = function (data) {
             // The data event will occassionally only be partially
             // complete. The last line will not end with "\r\n", and
             // need to be appended to the beginning of the first line.
@@ -113,7 +113,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
             // If the last line in the data is complete, then lastLine
             // will be set to an empty string, and appending an empty
             // string to a string does nothing.
-            var lines = data.split("\r\n");
+            let lines = data.split("\r\n");
             lines[0] = lastLine + lines[0];
             lastLine = lines.pop();
             lines.forEach(function (line) {
@@ -154,26 +154,26 @@ var Socket = module.exports = function Socket (config, netSocket) {
         socket.status = "starting";
         socket.emit("connect");
         timeout = setTimeout(onSilence, timeoutPeriod);
+        let serverCapabilties, acknowledgedCapabilities, sentRequests, respondedRequests, allRequestsSent, nickname;
 
         if (socket.capabilities) {
             socket.capabilities.requires = socket.capabilities.requires || [];
             socket.capabilities.wants = socket.capabilities.wants || [];
 
-            var serverCapabilties;
-            var acknowledgedCapabilities = socket.capabilities.requires.slice();
+            serverCapabilties;
+            acknowledgedCapabilities = socket.capabilities.requires.slice();
 
-            var sentRequests = 0;
-            var respondedRequests = 0;
-            var allRequestsSent = false;
+            sentRequests = 0;
+            respondedRequests = 0;
+            allRequestsSent = false;
         }
 
-        var nickname;
 
-        var sendUser = function () {
+        const sendUser = function () {
             socket.raw(format("USER %s 8 * :%s", socket.username, socket.realname));
         };
 
-        var sendNick = function  () {
+        const sendNick = function  () {
             if (socket.nicknames.length === 0) {
                 socket.raw("QUIT");
                 socket.resolvePromise(Fail(failures.nicknamesUnavailable));
@@ -186,8 +186,8 @@ var Socket = module.exports = function Socket (config, netSocket) {
             socket.raw(["NICK", nickname]);
         };
 
-        var startupHandler = function startupHandler (line) {
-            var parts = line.split(" ");
+        const startupHandler = function startupHandler (line) {
+            const parts = line.split(" ");
 
             // If WEBIRC fails.
             if (parts[0] === "ERROR") {
@@ -198,7 +198,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
                 return;
             }
 
-            var numeric = parts[1];
+            const numeric = parts[1];
 
             if (numeric === "CAP") {
                 var capabilities = socket.capabilities;
@@ -234,7 +234,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
                     return;
                 } else if (parts[3] === "NAK") {
                     respondedRequests += 1;
-                    var capability = parts[4].slice(1);
+                    const capability = parts[4].slice(1);
 
                     if (includes(capabilities.requires, capability)) {
                         socket.raw("QUIT");
@@ -244,7 +244,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
                 } else if (parts[3] === "ACK") {
                     respondedRequests += 1;
 
-                    var capability = parts[4].slice(1);
+                    const capability = parts[4].slice(1);
 
                     if (includes(capabilities.wants, capability)) {
                         acknowledgedCapabilities.push(capability);
@@ -269,7 +269,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
             } else if (numeric === "001") {
                 socket.status = "running";
 
-                var data = {
+                const data = {
                     capabilities: acknowledgedCapabilities,
                     nickname: nickname
                 };
@@ -303,7 +303,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
         };
 
         // Subscribe & Unsubscribe
-        // TODO(Havvy): Return /this/ Promise, 
+        // TODO(Havvy): Return /this/ Promise,
         socket.on("data", startupHandler);
         socket.startupPromise.finally(function (res) {
             socket.removeListener("data", startupHandler);
@@ -311,7 +311,7 @@ var Socket = module.exports = function Socket (config, netSocket) {
 
         // 1. Send WEBIRC
         if (typeof socket.proxy === "object") {
-            var proxy = socket.proxy;
+            const proxy = socket.proxy;
 
             socket.raw(["WEBIRC", proxy.password, proxy.username, proxy.hostname, proxy.ip]);
         }
@@ -413,7 +413,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
 
         this.impl.write(message + "\r\n", "utf-8");
     },
-    
+
     setTimeout: function (timeout, callback) {
         this.impl.setTimeout(timeout, callback);
     },
