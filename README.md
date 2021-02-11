@@ -1,4 +1,4 @@
-IRC Socket - Socket wrapper to emit irc messages and handle server startup. 
+IRC Socket - Socket wrapper to emit irc messages and handle server startup.
 
 We provide for you the following benefits:
 
@@ -16,12 +16,11 @@ npm install irc-socket --save
 ## Instantiation ##
 
 ```javascript
-var NetSocket = require("net").Socket;
+var net = require("net");
 var IrcSocket = require("irc-socket");
 
-var netSocket = new Socket();
 var ircSocket = IrcSocket({
-    socket: netSocket,
+    socket: net,
 
     port: 6667,
     server: "irc.someircnetwork.net",
@@ -55,9 +54,9 @@ var ircSocket = IrcSocket({
         family: 6, // for ipv6 with net.Socket
     },
 
-    // optional number of milliseconds with no 
+    // optional number of milliseconds with no
     // response before timeout is fired
-    timeout: 5 * 60 * 1000 
+    timeout: 5 * 60 * 1000
 });
 ```
 
@@ -69,13 +68,12 @@ apart from the Socket, you don't need to modify the config object, especially
 since the rest of the configuration values can be serialized as JSON.
 
 ```javascript
-var NetSocket = require("net").Socket;
+var net = require("net");
 var IrcSocket = require("irc-socket");
 var fs = require("fs");
 
 var config = fs.readFileSync("config.json");
-var netSocket = new NetSocket();
-var ircSocket = IrcSocket(config, netSocket);
+var ircSocket = IrcSocket(config, net);
 ```
 
 ### Configuration
@@ -156,7 +154,7 @@ client.connect().then(function (res) {
 
 ## Writing to the Server ##
 To send messages to the server, use socket.raw(). It accepts either a
-string or an array of Strings. The message '''must''' follow the 
+string or an array of Strings. The message '''must''' follow the
 [IRC protocol](https://irc-wiki.org/RFC 1459).
 
 ```javascript
@@ -217,7 +215,7 @@ you wish to log them.
 
 ## Timeouts ##
 
-The IRC socket will listen to ping messages and respond to them 
+The IRC socket will listen to ping messages and respond to them
 appropriately, so you do not need to handle this yourself.
 
 Furthermore, if no message from the server is sent within five
@@ -311,17 +309,16 @@ This means that you need to instantiate the socket you want. Once you upgrade th
 socket, you give up ownership of it, but gain ownership of the upgraded socket.
 
 ```
-var NetSocket = require("net").Socket;
+var net = require("net");
 var IrcSocket = require("irc-socket");
 
-var netSocket = new Socket();
 var ircSocket = IrcSocket({
     port: 6667,
     server: "irc.someircnetwork.net",
     nicknames: ["freddy", "freddy_"],
     username: "freddy",
     realname: "Freddy"
-});
+}, net);
 ```
 
 Even though `port` and `server` are part of the Socket connect options, you
@@ -330,12 +327,11 @@ option that was supported, you should instead pass the option in the
 connectOptions object.
 
 ```
-var NetSocket = require("net").Socket;
+var net = require("net");
 var IrcSocket = require("irc-socket");
 
-var netSocket = new Socket();
 var ircSocket = IrcSocket({
-    socket: netSocket,
+    socket: net,
     port: 6667,
     server: "irc.someircnetwork.net",
     nicknames: ["freddy", "freddy_"],
@@ -348,19 +344,17 @@ var ircSocket = IrcSocket({
 });
 ```
 
-For what was a `secure` socket, you must instead wrap a NetSocket around a
-TLS socket.
+For what was a `secure` socket, you must instead pass in the
+TLS socket object.
 
 ```
-var NetSocket = require("net").Socket;
-var TlsSocket = require("tls").TLSSocket;
+var tls = require("tls");
 var IrcSocket = require("irc-socket");
 
-var netSocket = new Socket();
-var tlsSocket = new TlsSocket(netSocket, {rejectUnauthorized: false});
 var IrcSocket = IrcSocket({
-    socket: tlsSocket,
+    socket: tls,
     ...
+    connectionOptions:  {rejectUnauthorized: false}
 });
 ```
 
