@@ -7,16 +7,16 @@
   "scripts": {
     "test": "mocha test/irc-socket.js"
   },
-  "repository": "https://github.com/Havvy/irc-socket.git",
+  "repository": "https://github.com/silverbucket/irc-socket.git",
   "keywords": [
     "irc",
     "socket"
   ],
-  "author": "Ryan S. Scheel (havvy)",
+  "author": "Nick Jennings <nick@silverbucket.net> (https://silverbucket.net)",
   "contributors": [
     "Ricki Hastings <ricki@ircanywhere.com> (http://ircanywhere.com)",
     "Fionn Kelleher <me@fionn.co> (http://fionn.co)",
-    "Nick Jennings <nick@silverbucket.net> (https://silverbucket.net)"
+    "Ryan S. Scheel (havvy)"
   ],
   "license": "ISC",
   "devDependencies": {
