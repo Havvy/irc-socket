@@ -9,7 +9,6 @@
 
 const EventEmitter = require("events").EventEmitter;
 const format = require("util").format;
-const Promise = require("bluebird");
 const rresult = require("r-result");
 const Ok = rresult.Ok;
 const Fail = rresult.Fail;
@@ -54,9 +53,16 @@ class IrcSocket extends EventEmitter {
         this.impl = netSocket || config.socket;
         // status := ["initialized", "connecting", "starting", "running", "closed"]
         this.status = "initialized";
+        this.pending = true;
         this.startupPromise = new Promise((resolve, reject) => {
-            this.resolvePromise = resolve;
-            this.rejectPromise = reject;
+            this.resolvePromise = (res) => {
+                this.pending = false;
+                resolve(res);
+            };
+            this.rejectPromise = (res) => {
+                this.pending = false;
+                reject(res);
+            }
         });
 
         // IRC Connection Handshake Options
@@ -147,9 +153,7 @@ class IrcSocket extends EventEmitter {
             // If `this.end()` is called before the connect event
             // fires, then we ignore the connect event, since we are
             // already ending/ended.
-            if (!this.startupPromise.isPending()) {
-                return;
-            }
+            if (!this.pending) { return; }
             this.status = "starting";
             this.emit("connect");
             timeout = setTimeout(onSilence, timeoutPeriod);
@@ -348,7 +352,7 @@ class IrcSocket extends EventEmitter {
         this.connection.on("end", () => {
             this.emit("end");
 
-            if (this.startupPromise.isPending()) {
+            if (this.pending) {
                 this.resolvePromise(Fail(failures.socketEnded));
             }
 
@@ -366,7 +370,7 @@ class IrcSocket extends EventEmitter {
 
     connect() {
         if (this.isStarted()) {
-            throw new Error("Cannot restart an irc-this.Socket.");
+            throw new Error("Cannot restart an irc Socket.");
         }
 
         this.status = "connecting";
@@ -380,7 +384,7 @@ class IrcSocket extends EventEmitter {
             return;
         }
 
-        if (this.startupPromise.isPending()) {
+        if (this.pending) {
             this.resolvePromise(Fail(failures.socketEnded));
         }
 
