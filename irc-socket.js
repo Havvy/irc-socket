@@ -13,14 +13,6 @@ const rresult = require("r-result");
 const Ok = rresult.Ok;
 const Fail = rresult.Fail;
 
-// const intoPropertyDescriptors = function (object) {
-//     Object.keys(object).forEach(function (key) {
-//         object[key] = { value: object[key] };
-//     });
-//
-//     return object;
-// };
-
 const includes = function (array, value) {
     return array.indexOf(value) !== -1;
 };
@@ -157,13 +149,12 @@ class IrcSocket extends EventEmitter {
             this.status = "starting";
             this.emit("connect");
             timeout = setTimeout(onSilence, timeoutPeriod);
-            let serverCapabilties, acknowledgedCapabilities, sentRequests, respondedRequests, allRequestsSent, nickname;
+            let serverCapabilities, acknowledgedCapabilities, sentRequests, respondedRequests, allRequestsSent, nickname;
 
             if (this.capabilities) {
                 this.capabilities.requires = this.capabilities.requires || [];
                 this.capabilities.wants = this.capabilities.wants || [];
 
-                serverCapabilties;
                 acknowledgedCapabilities = this.capabilities.requires.slice();
 
                 sentRequests = 0;
@@ -207,13 +198,13 @@ class IrcSocket extends EventEmitter {
                     let capabilities = this.capabilities;
 
                     if (parts[3] === "LS") {
-                        serverCapabilties = parts.slice(4);
+                        serverCapabilities = parts.slice(4);
                         // Remove the colon off the first capability.
-                        serverCapabilties[0] = serverCapabilties[0].slice(1);
+                        serverCapabilities[0] = serverCapabilities[0].slice(1);
 
                         if (capabilities.requires.length !== 0) {
                             if (capabilities.requires.every((capability) => {
-                                return includes(serverCapabilties, capability);
+                                return includes(serverCapabilities, capability);
                             })) {
                                 this.raw(format("CAP REQ :%s", capabilities.requires.join(" ")));
                                 sentRequests += 1;
@@ -226,7 +217,7 @@ class IrcSocket extends EventEmitter {
 
                         capabilities.wants
                           .filter((capability) => {
-                              return includes(serverCapabilties, capability);
+                              return includes(serverCapabilities, capability);
                           })
                           .forEach((capability) => {
                               this.raw(format("CAP REQ :%s", capability));
