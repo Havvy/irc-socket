@@ -28,7 +28,7 @@ const includes = function (array, value) {
 };
 
 const pick = function (object, keys) {
-    var newObject = Object.create(Object.getPrototypeOf(object));
+    const newObject = Object.create(Object.getPrototypeOf(object));
 
     Object.keys(object)
     .filter(function (key) { return includes(keys, key); })
@@ -363,7 +363,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
             this.emit("end");
 
             if (this.startupPromise.isPending()) {
-                this.resolvePromise(Fail(failures.this.nded));
+                this.resolvePromise(Fail(failures.socketEnded));
             }
 
             // Clean up our timeout.

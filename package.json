@@ -1,8 +1,9 @@
 {
-  "name": "irc-socket",
-  "version": "3.0.8",
-  "description": "Simple IRC Socket for usage with IRC libraries.",
+  "name": "irc-socket-sasl",
+  "version": "4.0.0",
+  "description": "Simple IRC Socket with SSL and SASL support, for usage with IRC libraries.",
   "main": "irc-socket.js",
+  "private": false,
   "scripts": {
     "test": "mocha test/irc-socket.js"
   },
@@ -15,14 +16,14 @@
   "contributors": [
     "Ricki Hastings <ricki@ircanywhere.com> (http://ircanywhere.com)",
     "Fionn Kelleher <me@fionn.co> (http://fionn.co)",
-    "Nick Jennings <nick@silverbucket.net> (https://silverbucket.net>"
+    "Nick Jennings <nick@silverbucket.net> (https://silverbucket.net)"
   ],
   "license": "ISC",
   "devDependencies": {
-    "@havvy/mock-net-socket": "^1.0.1",
+    "@silverbucket/mock-net-socket": "^2.0.0",
     "better-assert": "^1.0.2",
     "deep-eql": "^0.1.3",
-    "mocha": "^8.2.1",
+    "mocha": "^9.2.0",
     "sinon": "^1"
   },
   "dependencies": {
