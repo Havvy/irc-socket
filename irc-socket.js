@@ -8,33 +8,22 @@
  */
 
 const EventEmitter = require("events").EventEmitter;
-const inspect = require("util").inspect;
 const format = require("util").format;
 const Promise = require("bluebird");
 const rresult = require("r-result");
 const Ok = rresult.Ok;
 const Fail = rresult.Fail;
 
-const intoPropertyDescriptors = function (object) {
-    Object.keys(object).forEach(function (key) {
-        object[key] = { value: object[key] };
-    });
-
-    return object;
-};
+// const intoPropertyDescriptors = function (object) {
+//     Object.keys(object).forEach(function (key) {
+//         object[key] = { value: object[key] };
+//     });
+//
+//     return object;
+// };
 
 const includes = function (array, value) {
     return array.indexOf(value) !== -1;
-};
-
-const pick = function (object, keys) {
-    const newObject = Object.create(Object.getPrototypeOf(object));
-
-    Object.keys(object)
-    .filter(function (key) { return includes(keys, key); })
-    .forEach(function (key) { newObject[key] = object[key]; });
-
-    return newObject;
 };
 
 const copyJsonMaybe = function (object) {
@@ -58,49 +47,47 @@ const failures = {
     socketEnded: {}
 };
 
-const Socket = module.exports = function Socket (config, netSocket) {
-    const socket = Object.create(Socket.prototype);
+class IrcSocket extends EventEmitter {
+    constructor(config, netSocket) {
+        super();
+        // Internal implementation values.
+        this.impl = netSocket || config.socket;
+        // status := ["initialized", "connecting", "starting", "running", "closed"]
+        this.status = "initialized";
+        this.startupPromise = new Promise((resolve, reject) => {
+            this.resolvePromise = resolve;
+            this.rejectPromise = reject;
+        });
 
-    // Internal implementation values.
-    socket.impl = netSocket || config.socket;
-    // status := ["initialized", "connecting", "starting", "running", "closed"]
-    socket.status = "initialized";
-    socket.startupPromise = new Promise(function (resolve, reject) {
-        socket.resolvePromise = resolve;
-        socket.rejectPromise = reject;
-    });
+        // IRC Connection Handshake Options
+        this.proxy = config.proxy;
+        this.password = config.password;
+        this.capabilities = copyJsonMaybe(config.capabilities);
+        this.username = config.username;
+        this.realname = config.realname;
+        this.nicknames = config.nicknames.slice();
+        this.timeout = config.timeout || 5 * 60 * 1000;
 
-    // IRC Connection Handshake Options
-    socket.proxy = config.proxy;
-    socket.password = config.password;
-    socket.capabilities = copyJsonMaybe(config.capabilities);
-    socket.username = config.username;
-    socket.realname = config.realname;
-    socket.nicknames = config.nicknames.slice();
-    socket.timeout = config.timeout || 5 * 60 * 1000;
+        this.connectOptions = typeof config.connectOptions === "object" ? Object.create(config.connectOptions) : {};
+        this.connectOptions.port = config.port || 6667;
+        this.connectOptions.host = config.server;
 
-    socket.connectOptions = typeof config.connectOptions === "object" ? Object.create(config.connectOptions) : {};
-    socket.connectOptions.port = config.port || 6667;
-    socket.connectOptions.host = config.server;
 
-    socket.on("data", function (line) {
-        if (line.slice(0, 4) === "PING") {
-            // On PING, respond with a PONG so that we stay connected.
-            socket.raw(["PONG", line.slice(line.indexOf(":"))]);
-        }
-    });
+        this.on("data", function (line) {
+            if (line.slice(0, 4) === "PING") {
+                // On PING, respond with a PONG so that we stay connected.
+                this.raw(["PONG", line.slice(line.indexOf(":"))]);
+            }
+        });
 
-    socket.on("timeout", function () {
-        socket.end();
-    });
+        this.on("timeout", function () {
+            this.end();
+        });
+    }
 
-    return socket;
-};
+    static connectFailures = failures;
 
-Socket.connectFailures = failures;
-
-Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors({
-    _setHandlers: function () {
+    _setHandlers() {
         // Socket Timeout variables.
         // After five minutes without a server response, send a PONG.
         // If the server doesn't PING back (or send any message really)
@@ -120,7 +107,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         // Transforms the raw stream of data events into a stream of
         // one complete line per data event.
         // Also handles timeouts.
-        const dataHandler = (() => {
+        (() => {
             const emitLine = this.emit.bind(this, "data");
             let lastLine = "";
 
@@ -205,7 +192,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
                 if (parts[0] === "ERROR") {
                     this.resolvePromise(Fail(failures.badProxyConfiguration));
                     return;
-                // Ignore PINGs.
+                    // Ignore PINGs.
                 } else if (parts[0] === "PING") {
                     return;
                 }
@@ -223,8 +210,7 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
                         if (capabilities.requires.length !== 0) {
                             if (capabilities.requires.every((capability) => {
                                 return includes(serverCapabilties, capability);
-                            }))
-                            {
+                            })) {
                                 this.raw(format("CAP REQ :%s", capabilities.requires.join(" ")));
                                 sentRequests += 1;
                             } else {
@@ -235,13 +221,13 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
                         }
 
                         capabilities.wants
-                        .filter((capability) => {
-                            return includes(serverCapabilties, capability);
-                        })
-                        .forEach((capability) => {
-                            this.raw(format("CAP REQ :%s", capability));
-                            sentRequests += 1;
-                        });
+                          .filter((capability) => {
+                              return includes(serverCapabilties, capability);
+                          })
+                          .forEach((capability) => {
+                              this.raw(format("CAP REQ :%s", capability));
+                              sentRequests += 1;
+                          });
 
                         return;
                     } else if (parts[3] === "NAK") {
@@ -376,9 +362,9 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
 
         this.connection.setEncoding("utf-8");
         this.connection.setNoDelay();
-    },
+    }
 
-    connect: function () {
+    connect() {
         if (this.isStarted()) {
             throw new Error("Cannot restart an irc-this.Socket.");
         }
@@ -387,9 +373,9 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         this.connection = this.impl.connect(this.connectOptions);
         this._setHandlers(this.connection);
         return this.startupPromise;
-    },
+    }
 
-    end: function () {
+    end() {
         if (!this.isConnected()) {
             return;
         }
@@ -399,9 +385,9 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         }
 
         this.connection.end();
-    },
+    }
 
-    raw: function (message) {
+    raw(message) {
         if (!this.isConnected()) {
             return;
         }
@@ -415,25 +401,25 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         }
 
         this.connection.write(message + "\r\n", "utf-8");
-    },
+    }
 
-    setTimeout: function (timeout, callback) {
+    setTimeout(timeout, callback) {
         this.connection.setTimeout(timeout, callback);
-    },
+    }
 
-    isStarted: function () {
+    isStarted() {
         return this.status !== "initialized";
-    },
+    }
 
-    isConnected: function () {
+    isConnected() {
         return includes(["connecting", "starting", "running"], this.status);
-    },
+    }
 
-    isReady: function () {
+    isReady() {
         return this.status === "running";
-    },
+    }
 
-    getRealName: function () {
+    getRealName() {
         return this._realname;
     }
 
@@ -445,4 +431,6 @@ Socket.prototype = Object.create(EventEmitter.prototype, intoPropertyDescriptors
         EventEmitter.prototype.removeListener.apply(this, arguments);
     }
     */
-}));
+}
+
+module.exports = IrcSocket;

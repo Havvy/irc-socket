@@ -168,7 +168,7 @@ mySocket.connect().then(function (res) {
 
     // Using a string.
     mySocket.raw("JOIN #biscuits");
-}
+});
 
 mySocket.on('data', function (message) {
     message = message.split(" ");

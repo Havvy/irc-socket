@@ -82,7 +82,7 @@ describe("IRC Sockets", function () {
         let socket;
 
         beforeEach(function () {
-            socket = IrcSocket(baseConfig, MockSocket(logfn));
+            socket = new IrcSocket(baseConfig, MockSocket(logfn));
         });
 
         it("is 'initialized' at instantiation", function () {
@@ -136,7 +136,7 @@ describe("IRC Sockets", function () {
 
     describe("Startup Procedure", function () {
         it("Minimal config w/success", function () {
-            const socket = IrcSocket(baseConfig, MockSocket(logfn));
+            const socket = new IrcSocket(baseConfig, MockSocket(logfn));
 
             const promise = socket.connect()
             .then(function (res) {
@@ -157,7 +157,7 @@ describe("IRC Sockets", function () {
         });
 
         it("Minimal config w/success w/ready event", function (done) {
-            const socket = IrcSocket(baseConfig, MockSocket(logfn));
+            const socket = new IrcSocket(baseConfig, MockSocket(logfn));
 
             socket.on("ready", function (res) {
                 logfn(inspect(res));
@@ -174,7 +174,7 @@ describe("IRC Sockets", function () {
         });
 
         it("Minimal config w/failure", function () {
-            const socket = IrcSocket(baseConfig, MockSocket(logfn));
+            const socket = new IrcSocket(baseConfig, MockSocket(logfn));
 
             const promise = socket.connect()
             .then(function (res) {
@@ -196,7 +196,7 @@ describe("IRC Sockets", function () {
                 socket: MockSocket(logfn),
                 nicknames: ["testbot", "testbot_"]
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -219,7 +219,7 @@ describe("IRC Sockets", function () {
                 socket: MockSocket(logfn),
                 nicknames: ["testbot", "testbot_"]
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -252,7 +252,7 @@ describe("IRC Sockets", function () {
                     ip: "111.11.11.11"
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -279,7 +279,7 @@ describe("IRC Sockets", function () {
                     ip: "111.11.11.11"
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -301,7 +301,7 @@ describe("IRC Sockets", function () {
                 socket: MockSocket(logfn),
                 password: "123456"
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -322,7 +322,7 @@ describe("IRC Sockets", function () {
                 socket: MockSocket(logfn),
                 password: "123456"
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -345,7 +345,7 @@ describe("IRC Sockets", function () {
                 socket: MockSocket(logfn),
                 password: "123456"
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -370,7 +370,7 @@ describe("IRC Sockets", function () {
                     requires: ["a"]
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -394,7 +394,7 @@ describe("IRC Sockets", function () {
                     requires: ["a"]
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -417,7 +417,7 @@ describe("IRC Sockets", function () {
                     requires: ["a"]
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -445,7 +445,7 @@ describe("IRC Sockets", function () {
                     requires: ["a"]
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -475,7 +475,7 @@ describe("IRC Sockets", function () {
                     wants: ["a"]
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -503,7 +503,7 @@ describe("IRC Sockets", function () {
                     wants: ["a"]
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -531,7 +531,7 @@ describe("IRC Sockets", function () {
                     wants: ["a", "b"]
                 }
             });
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -565,7 +565,7 @@ describe("IRC Sockets", function () {
                 timeout: 200
             });
 
-            const socket = IrcSocket(config);
+            const socket = new IrcSocket(config);
 
             const promise = socket.connect()
             .then(function (res) {
@@ -583,7 +583,7 @@ describe("IRC Sockets", function () {
 
         it("connectArgs is passed to connect method", function () {
             const config = merge(baseConfig, {});
-            const socket = IrcSocket(config, MockSocket(logfn));
+            const socket = new IrcSocket(config, MockSocket(logfn));
 
             socket.connect();
             socket.impl.acceptConnect();
@@ -595,7 +595,7 @@ describe("IRC Sockets", function () {
         });
 
         it("Failure by .end() before connect event fired", function () {
-            const socket = IrcSocket(baseConfig, MockSocket(logfn));
+            const socket = new IrcSocket(baseConfig, MockSocket(logfn));
 
             const promise = socket.connect()
             .then(function (res) {
@@ -613,7 +613,7 @@ describe("IRC Sockets", function () {
         let socket;
 
         beforeEach(function () {
-            socket = IrcSocket(baseConfig, MockSocket(logfn));
+            socket = new IrcSocket(baseConfig, MockSocket(logfn));
 
             const promise = socket.connect();
             socket.impl.acceptConnect();
@@ -645,7 +645,7 @@ describe("IRC Sockets", function () {
             logfn(format("     Timer  [FAKE]"))
             clock = sinon.useFakeTimers();
 
-            socket = IrcSocket(baseConfig, MockSocket(logfn));
+            socket = new IrcSocket(baseConfig, MockSocket(logfn));
             const promise = socket.connect();
             socket.impl.acceptConnect();
             socket.impl.acceptData(messages.rpl_welcome);
@@ -733,7 +733,7 @@ describe("IRC Sockets", function () {
         let socket;
 
         beforeEach(function () {
-            socket = IrcSocket(baseConfig, MockSocket(logfn));
+            socket = new IrcSocket(baseConfig, MockSocket(logfn));
 
             const promise = socket.connect();
             socket.impl.acceptConnect();
