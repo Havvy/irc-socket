@@ -61,6 +61,10 @@ class IrcSocket extends EventEmitter {
         this.proxy = config.proxy;
         this.password = config.password;
         this.capabilities = copyJsonMaybe(config.capabilities);
+        if (config.saslPassword && !this.capabilities.requires.includes('sasl')) {
+            this.capabilities.requires.push('sasl');
+            config.saslUsername = config.saslUsername || config.username;
+        }
         this.username = config.username;
         this.realname = config.realname;
         this.nicknames = config.nicknames.slice();
@@ -89,7 +93,7 @@ class IrcSocket extends EventEmitter {
         // Socket Timeout variables.
         // After five minutes without a server response, send a PONG.
         // If the server doesn't PING back (or send any message really)
-        // within five minutes, we'll have assumed we've be DQed, and
+        // within five minutes, we'll have to assume we've been DQed, and
         // end the socket.
         let timeout = null;
         const timeoutPeriod = this.timeout;
@@ -161,7 +165,6 @@ class IrcSocket extends EventEmitter {
                 respondedRequests = 0;
                 allRequestsSent = false;
             }
-
 
             const sendUser = () => {
                 this.raw(format("USER %s 8 * :%s", this.username, this.realname));
@@ -242,6 +245,9 @@ class IrcSocket extends EventEmitter {
                         if (includes(capabilities.wants, capability)) {
                             acknowledgedCapabilities.push(capability);
                         }
+                        if (acknowledgedCapabilities.includes('sasl')) {
+                            this.raw(['AUTHENTICATE', 'PLAIN']);
+                        }
                     }
 
                     if (sentRequests === respondedRequests) {
@@ -258,6 +264,14 @@ class IrcSocket extends EventEmitter {
                         // irc.twitch.tv only in their non-standardness.
                         // Server doesn't kill the this. but it doesn't accept input afterwards either.
                         this.resolvePromise(Fail(failures.badPassword));
+                    }
+
+                } else if (numeric === "AUTHENTICATE") {
+                    if (parts[3] === '+') {
+                        const encPW = new Buffer(config.saslUsername + '\0' + config.saslUsername + '\0' + config.saslPassword).toString('base64');
+                        this.raw(['AUTHENTICATE', tmp]);
+                    } else {
+                        this.raw(['CAP', 'END']);
                     }
                 } else if (numeric === "001") {
                     this.status = "running";
@@ -298,7 +312,7 @@ class IrcSocket extends EventEmitter {
             // Subscribe & Unsubscribe
             // TODO(Havvy): Return /this/ Promise,
             this.on("data", startupHandler);
-            this.startupPromise.finally((res) => {
+            this.startupPromise.finally(() => {
                 this.removeListener("data", startupHandler);
             });
 

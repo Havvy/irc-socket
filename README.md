@@ -92,7 +92,11 @@ The configuration options are as follows.
 
  - `realname`: [**required**] "Real name" to send with the USER command.
 
- - `password`: Password used to connect to the network. Most networks don't have one.
+ - `password`: Password used to connect to the network. Most networks don't have one. 
+
+ - `saslPassword`: Will be used for SASL authentication if the sasl property is also true.
+
+ - `saslUsername`: Will be used for SASL authentication. (Defaults to username if not set).
 
  - `proxy`: WEBIRC details if your connection is acting as a (probably web-based) proxy.
 
@@ -104,7 +108,7 @@ The configuration options are as follows.
 
 Capabilities are a feature added in IRCv3 to extend IRC while still keeping
 IRCv2 compatibility. You can see the specification and well-known capabilities
-at [their website](http://ircv3.atheme.org/).
+at [the IRCv3 website](http://ircv3.net/).
 
 Should you want to use IRCv3 features, pass an object with the `requires`
 property listing which features you absolutely require and `wants` for

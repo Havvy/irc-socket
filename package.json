@@ -1,6 +1,6 @@
 {
   "name": "irc-socket-sasl",
-  "version": "4.0.0",
+  "version": "4.0.0-alpha.0",
   "description": "Simple IRC Socket with SSL and SASL support, for usage with IRC libraries.",
   "main": "irc-socket.js",
   "private": false,
