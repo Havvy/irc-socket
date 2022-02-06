@@ -59,6 +59,8 @@ const messages = {
     err_badpassword: ":irc.test.net 464 testbot :Invalid Password\r\n",
     notice_badlogin: ":irc.test.net NOTICE * :Login unsuccessful\r\n",
     cap_ls: ":irc.test.net CAP * LS :a b\r\n",
+    cap_sasl: ":irc.test.net CAP * LS :a b sasl\r\n",
+    auth_plus: "AUTHENTICATE +\r\n",
     cap_ack_a: ":irc.test.net CAP * ACK :a\r\n",
     cap_nak_a: ":irc.test.net CAP * NAK :a\r\n",
     cap_nak_b: ":irc.test.net CAP * NAK :b\r\n",
@@ -145,7 +147,7 @@ describe("IRC Sockets", function () {
             }, assert);
 
             socket.impl.acceptConnect();
-
+            // console.log(socket.impl.write.getCall(0));
             logfn(inspect(socket.impl.write.getCall(0).args));
             logfn((socket.impl.write.getCall(1).args));
             assert(socket.impl.write.getCall(0).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
@@ -431,6 +433,37 @@ describe("IRC Sockets", function () {
             assert(socket.impl.write.getCall(1).calledWithExactly("CAP REQ :a\r\n", "utf-8"));
             socket.impl.acceptData(messages.cap_ack_a);
             assert(socket.impl.write.getCall(2).calledWithExactly("CAP END\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(3).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
+            assert(socket.impl.write.getCall(4).calledWithExactly("NICK testbot\r\n", "utf-8"));
+            socket.impl.acceptData(messages.rpl_welcome);
+
+            return promise;
+        });
+
+        it("Capabilities required and auto-add SASL w/success", function () {
+            const config = merge(baseConfig, {
+                socket: MockSocket(logfn),
+                saslUsername: 'foo',
+                saslPassword: 'bar',
+                capabilities: {
+                    requires: ["a", 'sasl']
+                }
+            });
+            const socket = new IrcSocket(config);
+
+            const promise = socket.connect()
+              .then(function (res) {
+                  assert(res.isOk());
+                  assert(equal(res.ok().capabilities, ["a", "sasl"]));
+              });
+
+            socket.impl.acceptConnect();
+            assert(socket.impl.write.getCall(0).calledWithExactly("CAP LS\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_sasl);
+            assert(socket.impl.write.getCall(1).calledWithExactly("CAP REQ :a sasl\r\n", "utf-8"));
+            socket.impl.acceptData(messages.cap_ack_a);
+            assert(socket.impl.write.getCall(2).calledWithExactly("AUTHENTICATE PLAIN\r\n", "utf-8"));
+            socket.impl.acceptData(messages.auth_plus);
             assert(socket.impl.write.getCall(3).calledWithExactly("USER testuser 8 * :realbot\r\n", "utf-8"));
             assert(socket.impl.write.getCall(4).calledWithExactly("NICK testbot\r\n", "utf-8"));
             socket.impl.acceptData(messages.rpl_welcome);

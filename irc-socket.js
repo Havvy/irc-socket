@@ -30,12 +30,12 @@ const endsWith = function (string, postfix) {
 };
 
 const failures = {
-    killed: {},
-    nicknamesUnavailable: {},
-    badProxyConfiguration: {},
-    missingRequiredCapabilities: {},
-    badPassword: {},
-    socketEnded: {}
+    killed: 'killed',
+    nicknamesUnavailable: 'nicknames unavailable',
+    badProxyConfiguration: 'bad proxy configuration',
+    missingRequiredCapabilities: 'missing required capabilities',
+    badPassword: 'bad password',
+    socketEnded: 'socket ended'
 };
 
 class IrcSocket extends EventEmitter {
@@ -60,10 +60,10 @@ class IrcSocket extends EventEmitter {
         // IRC Connection Handshake Options
         this.proxy = config.proxy;
         this.password = config.password;
-        this.capabilities = copyJsonMaybe(config.capabilities);
-        if (config.saslPassword && !this.capabilities.requires.includes('sasl')) {
-            this.capabilities.requires.push('sasl');
-            config.saslUsername = config.saslUsername || config.username;
+        this.capabilities = copyJsonMaybe(config.capabilities)
+        if (config.saslPassword) {
+            this.saslUsername = config.saslUsername || config.username;
+            this.saslPassword = config.saslPassword;
         }
         this.username = config.username;
         this.realname = config.realname;
@@ -158,6 +158,12 @@ class IrcSocket extends EventEmitter {
             if (this.capabilities) {
                 this.capabilities.requires = this.capabilities.requires || [];
                 this.capabilities.wants = this.capabilities.wants || [];
+                // this.capabilities.requires.push('account-notify');
+                // this.capabilities.requires.push('away-notify');
+                // this.capabilities.requires.push('cap-notify');
+                // this.capabilities.requires.push('chghost');
+                // this.capabilities.requires.push('extended-join');
+                // this.capabilities.requires.push('multi-prefix');
 
                 acknowledgedCapabilities = this.capabilities.requires.slice();
 
@@ -185,6 +191,7 @@ class IrcSocket extends EventEmitter {
 
             const startupHandler = (line) => {
                 const parts = line.split(" ");
+                // console.log("[IRC DEBUG] LINE: ", line);
 
                 // If WEBIRC fails.
                 if (parts[0] === "ERROR") {
@@ -196,7 +203,6 @@ class IrcSocket extends EventEmitter {
                 }
 
                 const numeric = parts[1];
-
                 if (numeric === "CAP") {
                     let capabilities = this.capabilities;
 
@@ -204,7 +210,6 @@ class IrcSocket extends EventEmitter {
                         serverCapabilities = parts.slice(4);
                         // Remove the colon off the first capability.
                         serverCapabilities[0] = serverCapabilities[0].slice(1);
-
                         if (capabilities.requires.length !== 0) {
                             if (capabilities.requires.every((capability) => {
                                 return includes(serverCapabilities, capability);
@@ -251,7 +256,9 @@ class IrcSocket extends EventEmitter {
                     }
 
                     if (sentRequests === respondedRequests) {
-                        this.raw("CAP END");
+                        if (!this.saslPassword) {
+                            this.raw("CAP END");
+                        }
 
                         // 4. Send USER
                         sendUser();
@@ -266,13 +273,13 @@ class IrcSocket extends EventEmitter {
                         this.resolvePromise(Fail(failures.badPassword));
                     }
 
-                } else if (numeric === "AUTHENTICATE") {
-                    if (parts[3] === '+') {
-                        const encPW = new Buffer(config.saslUsername + '\0' + config.saslUsername + '\0' + config.saslPassword).toString('base64');
-                        this.raw(['AUTHENTICATE', tmp]);
-                    } else {
-                        this.raw(['CAP', 'END']);
+                } else if (parts[0] === "AUTHENTICATE") {
+                    if (parts[1] === '+') {
+                        const encPW = Buffer.from(this.saslUsername + '\0' + this.saslUsername + '\0' + this.saslPassword).toString('base64');
+                        this.raw(['AUTHENTICATE', encPW]);
                     }
+                } else if (numeric === '903') {
+                    this.raw("CAP END");
                 } else if (numeric === "001") {
                     this.status = "running";
 
@@ -408,7 +415,7 @@ class IrcSocket extends EventEmitter {
         if (message.indexOf("\n") !== -1) {
             throw new Error("Newline detected in message. Use multiple raws instead.");
         }
-
+        // console.log('[IRC DEBUG] SEND: ' + message);
         this.connection.write(message + "\r\n", "utf-8");
     }
 
